@@ -1,444 +1,508 @@
 """
-pages/3_validator.py — Email Validator
-Bright Notion-style spreadsheet UI. Validates emails from any source.
-Source options: paste / upload CSV / use scraper data / use FB data.
-Writes to st.session_state["val_results"].
+pages/2_facebook.py — Facebook Email Extractor
+Dark terminal-style UI. Full-width live feed of results.
+Writes to st.session_state["fb_results"].
 """
 import streamlit as st
-import pandas as pd, io, time
+import time, re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 from utils import (
-    is_valid_email, tier_key, tier_short, sort_by_tier, pick_best,
-    confidence_score, conf_color, val_icon,
-    validate_email_full, validate_with_fallback,
-    build_xlsx_validator,
+    extract_emails, sort_by_tier, pick_best, tier_short, tier_key,
+    fetch_page, build_xlsx_facebook,
 )
 
-# ── NOTION-STYLE CSS ──────────────────────────────────────────────────────────
+# ── DARK TERMINAL CSS ─────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+    --dk-bg: #06060f;
+    --dk-surface: #0d0d1a;
+    --dk-surface-hover: #14142a;
+    --dk-border: #1a1a30;
+    --dk-border-subtle: #12122a;
+    --dk-accent: #34d399;
+    --dk-accent-dim: rgba(52,211,153,0.08);
+    --dk-accent-glow: rgba(52,211,153,0.2);
+    --dk-fb: #1877f2;
+    --dk-fb-dim: rgba(24,119,242,0.12);
+    --dk-text: #e2e8f0;
+    --dk-text-secondary: #94a3b8;
+    --dk-text-muted: #475569;
+    --dk-danger: #f87171;
+    --dk-warning: #fbbf24;
+    --dk-radius: 14px;
+    --dk-radius-sm: 10px;
+}
+
 *, html, body, [class*="css"] { font-family: 'Inter', system-ui, sans-serif !important; }
 #MainMenu, footer, header { visibility: hidden; }
-.block-container { padding: 1.4rem 2.5rem 4rem !important; max-width:100% !important; background:#ffffff !important; }
+.block-container {
+    padding: 1.6rem 2rem 4rem !important; max-width: 100% !important;
+    background: var(--dk-bg) !important;
+    background-image:
+        radial-gradient(ellipse at 15% 10%, rgba(52,211,153,0.03) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 90%, rgba(24,119,242,0.03) 0%, transparent 50%) !important;
+}
 
-/* header */
-.val-hdr-title { font-size:22px; font-weight:800; color:#111; letter-spacing:-.6px; }
-.val-hdr-sub   { font-size:12px; color:#aaa; margin-top:2px; }
+.stMarkdown, .stCaption, label, p, span, div { color: var(--dk-text-secondary) !important; }
 
-/* source selector */
-.src-btn-row { display:flex; gap:8px; margin:12px 0; flex-wrap:wrap; }
-.src-chip { display:inline-flex; align-items:center; gap:6px; padding:7px 14px;
-    border-radius:8px; font-size:12.5px; font-weight:600; cursor:pointer;
-    border:2px solid transparent; transition:all .15s; user-select:none; }
-.src-chip.active   { background:#111; color:#fff; border-color:#111; }
-.src-chip.inactive { background:#f5f5f4; color:#777; border-color:#f5f5f4; }
-.src-chip.inactive:hover { background:#eeeeed; border-color:#eeeeed; color:#333; }
-.src-chip-count { font-size:10px; background:rgba(255,255,255,.2); padding:1px 5px;
-    border-radius:3px; font-weight:700; }
-.src-chip.inactive .src-chip-count { background:#e0e0de; color:#777; }
+.stTextArea textarea {
+    font-family: 'JetBrains Mono', monospace !important; font-size: 12px !important;
+    border-radius: var(--dk-radius-sm) !important;
+    border: 1px solid var(--dk-border) !important;
+    background: var(--dk-surface) !important; color: var(--dk-text) !important;
+    resize: none !important; line-height: 1.7 !important;
+    transition: border-color 0.2s, box-shadow 0.2s !important;
+}
+.stTextArea textarea:focus {
+    border-color: var(--dk-accent) !important;
+    box-shadow: 0 0 0 3px var(--dk-accent-dim), 0 0 20px var(--dk-accent-dim) !important;
+}
+.stTextArea textarea::placeholder { color: #1e293b !important; }
 
-/* all buttons */
 .stButton > button {
-    font-family:'Inter',sans-serif !important; font-weight:600 !important;
-    border-radius:8px !important; font-size:12.5px !important; height:38px !important;
-    transition:all .13s !important;
+    font-family: 'Inter', sans-serif !important; font-weight: 600 !important;
+    border-radius: var(--dk-radius-sm) !important; font-size: 12.5px !important;
+    height: 40px !important; transition: all 0.2s ease !important;
 }
 .stButton > button[kind="primary"] {
-    background:#111 !important; border:2px solid #111 !important; color:#fff !important;
-    box-shadow:0 1px 3px rgba(0,0,0,.15) !important;
+    background: linear-gradient(135deg, #34d399 0%, #10b981 100%) !important;
+    border: none !important; color: #022c22 !important;
+    box-shadow: 0 4px 16px rgba(52,211,153,0.25), inset 0 1px 0 rgba(255,255,255,0.2) !important;
+    font-weight: 700 !important;
 }
 .stButton > button[kind="primary"]:hover {
-    background:#2d2d2d !important; transform:translateY(-1px) !important;
-    box-shadow:0 3px 10px rgba(0,0,0,.2) !important;
+    box-shadow: 0 6px 24px rgba(52,211,153,0.4), inset 0 1px 0 rgba(255,255,255,0.25) !important;
+    transform: translateY(-1px) !important;
 }
 .stButton > button[kind="primary"]:disabled {
-    background:#f0f0ee !important; border-color:#f0f0ee !important;
-    color:#bbb !important; box-shadow:none !important; transform:none !important;
+    background: var(--dk-surface) !important; color: #1e293b !important;
+    box-shadow: none !important; border: 1px solid var(--dk-border) !important;
 }
 .stButton > button[kind="secondary"] {
-    background:#fff !important; border:1.5px solid #e4e4e0 !important; color:#555 !important;
+    background: var(--dk-surface) !important; border: 1px solid var(--dk-border) !important;
+    color: var(--dk-text-muted) !important;
 }
 .stButton > button[kind="secondary"]:hover {
-    border-color:#999 !important; color:#111 !important; background:#fafaf8 !important;
+    border-color: var(--dk-accent) !important; color: var(--dk-accent) !important;
+    background: var(--dk-accent-dim) !important;
 }
 .stDownloadButton > button {
-    font-family:'Inter',sans-serif !important; font-weight:600 !important;
-    border-radius:8px !important; font-size:12.5px !important; height:38px !important;
-    background:#fff !important; border:1.5px solid #e4e4e0 !important; color:#555 !important;
+    font-family: 'Inter', sans-serif !important; font-weight: 600 !important;
+    border-radius: var(--dk-radius-sm) !important; font-size: 12px !important;
+    height: 38px !important; background: var(--dk-surface) !important;
+    border: 1px solid var(--dk-border) !important; color: var(--dk-text-muted) !important;
 }
-.stDownloadButton > button:hover { border-color:#999 !important; color:#111 !important; }
+.stDownloadButton > button:hover { border-color: var(--dk-accent) !important; color: var(--dk-accent) !important; }
 
-/* text inputs */
-.stTextArea textarea {
-    font-size:13px !important; border-radius:8px !important;
-    border:1.5px solid #e4e4e0 !important; background:#fafaf8 !important;
-    line-height:1.6 !important; resize:none !important; color:#333 !important;
+[data-testid="stMetric"] {
+    background: var(--dk-surface) !important; border: 1px solid var(--dk-border) !important;
+    border-radius: var(--dk-radius-sm) !important; padding: .8rem 1rem !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+    transition: border-color 0.2s !important;
 }
-.stTextArea textarea:focus { border-color:#111 !important; box-shadow:0 0 0 3px rgba(0,0,0,.05) !important; }
-.stTextInput > div > input {
-    border-radius:8px !important; border:1.5px solid #e4e4e0 !important;
-    font-size:13px !important; height:38px !important; background:#fafaf8 !important;
+[data-testid="stMetric"]:hover { border-color: var(--dk-border-subtle) !important; }
+[data-testid="stMetricLabel"] p {
+    font-size: 9px !important; font-weight: 700 !important; color: var(--dk-text-muted) !important;
+    text-transform: uppercase !important; letter-spacing: 0.8px !important;
 }
-.stTextInput > div > input:focus { border-color:#111 !important; box-shadow:0 0 0 3px rgba(0,0,0,.05) !important; }
+[data-testid="stMetricValue"] {
+    font-size: 24px !important; font-weight: 900 !important;
+    color: var(--dk-text) !important; letter-spacing: -0.8px !important;
+}
 
-/* metrics */
-[data-testid="stMetric"] { background:#fff; border:1px solid #eaeae6; border-radius:10px; padding:.7rem .85rem !important; }
-[data-testid="stMetricLabel"] p { font-size:9.5px !important; font-weight:700 !important; color:#bbb !important; text-transform:uppercase !important; letter-spacing:.6px !important; }
-[data-testid="stMetricValue"] { font-size:22px !important; font-weight:800 !important; color:#111 !important; letter-spacing:-.7px !important; }
+.fb-card {
+    background: var(--dk-surface); border: 1px solid var(--dk-border);
+    border-radius: var(--dk-radius-sm); padding: 14px 18px;
+    margin-bottom: 10px; transition: all 0.25s ease;
+    position: relative; overflow: hidden;
+}
+.fb-card::before {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 3px; height: 100%; transition: background 0.3s;
+}
+.fb-card:hover {
+    border-color: var(--dk-border-subtle);
+    background: var(--dk-surface-hover);
+    transform: translateX(2px);
+}
+.fb-card.has-emails::before  { background: var(--dk-accent); box-shadow: 0 0 12px var(--dk-accent-glow); }
+.fb-card.blocked::before     { background: var(--dk-danger); }
+.fb-card.no-emails::before   { background: #1e293b; }
+.fb-handle {
+    font-size: 14px; font-weight: 700; color: var(--dk-text);
+    font-family: 'JetBrains Mono', monospace; letter-spacing: -0.3px;
+}
+.fb-status { font-size: 10px; color: var(--dk-text-muted); margin-top: 2px; }
+.fb-email {
+    font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
+    margin-top: 8px; display: flex; align-items: center; gap: 10px;
+}
+.fb-t1 { color: #fbbf24; font-weight: 700; }
+.fb-t2 { color: #60a5fa; font-weight: 600; }
+.fb-t3 { color: var(--dk-text-muted); }
 
-/* live progress bar */
-.val-prog { height:3px; border-radius:99px; background:#f0f0ee; overflow:hidden; margin:6px 0; }
-.val-prog-fill { height:100%; border-radius:99px; background:#111; transition:width .35s ease; }
+.tier-badge {
+    font-size: 9px; font-weight: 700; padding: 2px 7px;
+    border-radius: 5px; margin-left: 4px; letter-spacing: 0.3px;
+}
+.tb-t1 { background: rgba(251,191,36,0.1); color: #fbbf24; border: 1px solid rgba(251,191,36,0.2); }
+.tb-t2 { background: rgba(96,165,250,0.1); color: #60a5fa; border: 1px solid rgba(96,165,250,0.2); }
+.tb-t3 { background: rgba(71,85,105,0.1); color: #64748b; border: 1px solid rgba(71,85,105,0.15); }
 
-/* status pills for table */
-.st-del  { color:#15803d; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:4px; padding:1px 7px; font-size:10.5px; font-weight:700; }
-.st-risk { color:#92400e; background:#fffbeb; border:1px solid #fde68a; border-radius:4px; padding:1px 7px; font-size:10.5px; font-weight:700; }
-.st-bad  { color:#b91c1c; background:#fff1f2; border:1px solid #fecdd3; border-radius:4px; padding:1px 7px; font-size:10.5px; font-weight:700; }
-.st-pend { color:#6b7280; background:#f9fafb; border:1px solid #e5e7eb; border-radius:4px; padding:1px 7px; font-size:10.5px; font-weight:600; }
+.scanning-card::before {
+    background: var(--dk-warning) !important;
+    animation: scan-border 1.5s ease-in-out infinite !important;
+}
+@keyframes scan-border {
+    0%, 100% { box-shadow: 0 0 8px rgba(251,191,36,0.3); }
+    50% { box-shadow: 0 0 16px rgba(52,211,153,0.4); background: var(--dk-accent); }
+}
 
-/* info banner */
-.info-banner { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:9px 14px; font-size:12px; color:#15803d; font-weight:600; margin:6px 0; }
-.warn-banner { background:#fff1f2; border:1px solid #fecdd3; border-radius:8px; padding:9px 14px; font-size:12px; color:#be123c; font-weight:600; margin:6px 0; }
+.hdr-title {
+    font-size: 20px; font-weight: 900; color: #fff;
+    letter-spacing: -0.5px; display: flex; align-items: center; gap: 12px;
+}
+.hdr-box {
+    width: 38px; height: 38px; background: var(--dk-fb);
+    border-radius: 10px; display: flex; align-items: center;
+    justify-content: center; font-size: 18px; flex-shrink: 0;
+    box-shadow: 0 4px 16px rgba(24,119,242,0.35);
+    font-weight: 800; color: #fff;
+}
+.hdr-sub { font-size: 11px; color: var(--dk-text-muted); margin-top: 4px; font-weight: 500; }
 
-hr { border-color:#f0f0ee !important; margin:14px 0 !important; }
-.sec-lbl { font-size:9.5px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:#bbb; display:block; margin-bottom:6px; }
+.prog-strip {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 16px; background: var(--dk-surface);
+    border: 1px solid var(--dk-border); border-radius: var(--dk-radius-sm);
+    margin: 10px 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.prog-strip-bar {
+    flex: 1; height: 3px; background: var(--dk-border);
+    border-radius: 99px; overflow: hidden;
+}
+.prog-strip-fill {
+    height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg, var(--dk-accent), #6ee7b7);
+    transition: width 0.5s ease; position: relative; overflow: hidden;
+}
+.prog-strip-fill::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.prog-strip-text {
+    font-size: 11px; color: var(--dk-text-muted);
+    font-family: 'JetBrains Mono', monospace; white-space: nowrap;
+}
+
+.pulse-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--dk-accent); margin-right: 8px;
+    animation: dot-pulse 1.4s ease-in-out infinite;
+}
+@keyframes dot-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 6px var(--dk-accent-glow); }
+    50% { opacity: 0.2; transform: scale(0.7); box-shadow: none; }
+}
+
+.sec-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--dk-text-muted);
+    display: block; margin-bottom: 8px;
+}
+.pill-tag { display: inline-block; font-size: 9.5px; font-weight: 600; padding: 2px 8px; border-radius: 5px; }
+hr { border-color: var(--dk-border) !important; margin: 14px 0 !important; }
+
+[data-testid="stToggle"] > label { color: var(--dk-text-secondary) !important; }
+[data-testid="stSelectbox"] > div > div { background: var(--dk-surface) !important; border-color: var(--dk-border) !important; color: var(--dk-text) !important; }
+[data-testid="stNumberInput"] input { background: var(--dk-surface) !important; border-color: var(--dk-border) !important; color: var(--dk-text) !important; }
 </style>
 """, unsafe_allow_html=True)
 
 # ── SESSION STATE ─────────────────────────────────────────────────────────────
 for k,v in {
-    "val_results":[],"val_source":"paste","val_running":False,
-    "val_queue":[],"val_idx":0,"val_search":"",
+    "fb_results":{},"fb_running":False,"fb_queue":[],"fb_idx":0,
+    "fb_parallel":True,"fb_delay":3,
 }.items():
     if k not in st.session_state: st.session_state[k]=v
 
-# ── HELPERS ───────────────────────────────────────────────────────────────────
-def collect_from_scraper():
-    """Pull domain groups from scraper results for fallback-aware validation."""
-    items = []
-    for domain, r in st.session_state.get("scraper_results", {}).items():
-        best = r.get("Best Email","")
-        all_e = r.get("All Emails",[])
-        if best or all_e:
-            items.append({
-                "email": best, "domain": domain,
-                "all_emails": all_e,
-                "source": "Scraper",
-                "val": None, "was_fallback": False,
-                "original_email": best, "confidence": None,
-            })
-    return items
+# ── SCRAPER LOGIC ─────────────────────────────────────────────────────────────
+def normalize_handle(raw):
+    raw=raw.strip()
+    if not raw: return None
+    m=re.search(r'facebook\.com/(?:pages/[^/]+/)?([A-Za-z0-9_.]{3,80})', raw)
+    if m:
+        slug=m.group(1)
+        skip={'sharer','share','dialog','login','home','watch','groups','events','marketplace','tr'}
+        if slug.lower() not in skip: return slug
+    if re.match(r'^[A-Za-z0-9_.]{3,80}$', raw): return raw
+    return None
 
-def collect_from_fb():
-    """Pull emails from FB results."""
-    items = []
-    for handle, r in st.session_state.get("fb_results", {}).items():
-        emails = r.get("emails", [])
-        if emails:
-            best = pick_best(emails) or ""
-            items.append({
-                "email": best, "domain": handle,
-                "all_emails": emails,
-                "source": "Facebook",
-                "val": None, "was_fallback": False,
-                "original_email": best, "confidence": None,
-            })
-    return items
-
-def collect_from_paste(raw_text):
-    items = []
-    for line in raw_text.splitlines():
-        email = line.strip()
-        if is_valid_email(email):
-            items.append({
-                "email": email, "domain": email.split("@")[-1],
-                "all_emails": [email],
-                "source": "Manual",
-                "val": None, "was_fallback": False,
-                "original_email": email, "confidence": None,
-            })
-    return items
-
-def collect_from_csv(df, email_col):
-    items = []
-    for email in df[email_col].dropna().astype(str):
-        email = email.strip()
-        if is_valid_email(email):
-            items.append({
-                "email": email, "domain": email.split("@")[-1],
-                "all_emails": [email],
-                "source": "CSV",
-                "val": None, "was_fallback": False,
-                "original_email": email, "confidence": None,
-            })
-    return items
+def scrape_fb_handle(handle, delay=3):
+    t0=time.time(); all_emails=set(); pages_tried=0; status="no_emails"
+    urls_to_try=[
+        f"https://www.facebook.com/{handle}",
+        f"https://www.facebook.com/{handle}/about",
+        f"https://m.facebook.com/{handle}",
+    ]
+    for url in urls_to_try:
+        html,code=fetch_page(url,timeout=12,mobile=True)
+        if code==403 or (html and "checkpoint" in html.lower() and "facebook" in url):
+            status="blocked"; break
+        if html:
+            found=extract_emails(html)
+            if found: all_emails.update(found)
+            pages_tried+=1
+        time.sleep(delay)
+    if all_emails: status="scraped"
+    elif status!="blocked": status="no_emails"
+    return {
+        "emails":sort_by_tier(all_emails),
+        "status":status,
+        "time":round(time.time()-t0,1),
+        "pages_tried":pages_tried,
+    }
 
 # ── HEADER ────────────────────────────────────────────────────────────────────
-hc1, hc2 = st.columns([4,1])
+hc1,hc2=st.columns([4,1])
 with hc1:
     st.markdown(
-        '<div class="val-hdr-title">✅ Validator</div>'
-        '<div class="val-hdr-sub">SMTP validation &nbsp;|&nbsp; fallback chain &nbsp;|&nbsp; '
-        'confidence scoring &nbsp;|&nbsp; DMARC &nbsp;|&nbsp; SPF &nbsp;|&nbsp; catch-all detection</div>',
+        '<div class="hdr-title"><div class="hdr-box">f</div>Facebook Extractor</div>'
+        '<div class="hdr-sub">Extract contact emails from Facebook pages &nbsp;·&nbsp; '
+        'main page + /about + mobile &nbsp;·&nbsp; rate-limit aware</div>',
         unsafe_allow_html=True)
 with hc2:
-    val_res = st.session_state.get("val_results",[])
-    if val_res:
-        xlsx = build_xlsx_validator(val_res)
-        st.download_button("⬇ Export .xlsx", xlsx,
-                           f"validated_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+    fb_results=st.session_state.get("fb_results",{})
+    if fb_results:
+        from utils import build_xlsx_facebook as _bfb
+        xlsx=_bfb(fb_results)
+        st.download_button("⬇ Export .xlsx",xlsx,
+                           f"facebook_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                           key="val_xlsx")
+                           key="fb_xlsx")
 st.divider()
 
-# ── SOURCE SELECTOR ───────────────────────────────────────────────────────────
-st.markdown('<span class="sec-lbl">Source</span>', unsafe_allow_html=True)
+# ── INPUT AREA ────────────────────────────────────────────────────────────────
+col_in, col_ctrl = st.columns([2, 1], gap="large")
 
-n_scraper = len([r for r in st.session_state.get("scraper_results",{}).values() if r.get("Best Email") or r.get("All Emails")])
-n_fb      = len([r for r in st.session_state.get("fb_results",{}).values() if r.get("emails")])
+with col_in:
+    st.markdown('<span class="sec-label">Facebook pages (one per line)</span>', unsafe_allow_html=True)
+    raw_input = st.text_area(
+        "fb_input", label_visibility="collapsed",
+        placeholder="techcrunch\nforbes\nhttps://facebook.com/entrepreneur\nnytimes",
+        height=160, key="fb_raw_input")
 
-SOURCES = [
-    ("paste",   "✎ Paste emails",       None),
-    ("csv",     "⬆ Upload CSV",         None),
-    ("scraper", "🔍 Scraper data",       n_scraper),
-    ("fb",      "📘 Facebook data",      n_fb),
-]
+    handles_to_scrape = []
+    for line in raw_input.splitlines():
+        h = normalize_handle(line)
+        if h: handles_to_scrape.append(h)
 
-# source selector as styled buttons
-src_cols = st.columns(len(SOURCES))
-for col, (key, label, count) in zip(src_cols, SOURCES):
-    with col:
-        is_active = st.session_state.val_source == key
-        count_str = f" ({count})" if count is not None else ""
-        if st.button(
-            label + count_str,
-            key=f"src_{key}",
-            type="primary" if is_active else "secondary",
-            use_container_width=True,
-            disabled=(key == "scraper" and n_scraper == 0) or (key == "fb" and n_fb == 0),
-        ):
-            st.session_state.val_source = key
-            st.session_state.val_results = []  # clear on source change
+    scraper_data = st.session_state.get("scraper_results", {})
+    fb_from_scraper = []
+    for r in scraper_data.values():
+        for fb in r.get("Facebook",[]):
+            h = normalize_handle(fb)
+            if h and h not in fb_from_scraper: fb_from_scraper.append(h)
+
+    if fb_from_scraper:
+        if st.button(f"+ Import {len(fb_from_scraper)} handles from last scrape",
+                     type="secondary", key="import_fb"):
+            combined = "\n".join(set(raw_input.splitlines() + fb_from_scraper))
+            st.session_state.fb_raw_input_val = combined
             st.rerun()
 
-source = st.session_state.val_source
-st.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
-
-# ── INPUT BASED ON SOURCE ─────────────────────────────────────────────────────
-items_to_validate = []
-paste_text = ""
-uploaded_csv = None
-email_col_sel = None
-
-if source == "paste":
-    paste_text = st.text_area(
-        "paste_emails", label_visibility="collapsed",
-        placeholder="editor@techcrunch.com\npress@forbes.com\ninfo@wired.com\ncontact@example.org",
-        height=130, key="paste_emails_ta")
-    items_to_validate = collect_from_paste(paste_text)
-    if items_to_validate:
-        st.caption(f"{len(items_to_validate)} valid email(s) detected")
-
-elif source == "csv":
-    uploaded_csv = st.file_uploader("Upload CSV with email column", type=["csv"], key="val_csv_up")
-    if uploaded_csv:
-        try:
-            df_up = pd.read_csv(io.BytesIO(uploaded_csv.read()))
-            cols = list(df_up.columns)
-            hints = ["email","mail","address","contact"]
-            default_col = next((c for c in cols if any(h in c.lower() for h in hints)), cols[0])
-            email_col_sel = st.selectbox("Email column", cols, index=cols.index(default_col), key="val_csv_col")
-            items_to_validate = collect_from_csv(df_up, email_col_sel)
-            st.caption(f"{len(items_to_validate)} valid email(s) in column '{email_col_sel}'")
-        except Exception as e:
-            st.error(f"CSV error: {e}")
-
-elif source == "scraper":
-    items_to_validate = collect_from_scraper()
-    if items_to_validate:
+    if handles_to_scrape:
         st.markdown(
-            f'<div class="info-banner">'
-            f'{len(items_to_validate)} domains from last scrape loaded. '
-            f'Validator will use the fallback chain — if the best email is not deliverable, '
-            f'it tries the next email in tier order automatically.'
-            f'</div>', unsafe_allow_html=True)
-    else:
-        st.markdown('<div class="warn-banner">No scraper results found. Run the Scraper first.</div>',
-                    unsafe_allow_html=True)
+            '<div style="display:flex;flex-wrap:wrap;gap:5px;margin:6px 0">'
+            + "".join(f'<span style="font-family:JetBrains Mono,monospace;font-size:10px;'
+                      f'background:var(--dk-surface);border:1px solid var(--dk-border);border-radius:6px;'
+                      f'padding:3px 9px;color:var(--dk-text-secondary)">{h}</span>' for h in handles_to_scrape[:8])
+            + (f'<span style="font-size:10px;color:var(--dk-text-muted)">+{len(handles_to_scrape)-8} more</span>'
+               if len(handles_to_scrape) > 8 else "")
+            + '</div>', unsafe_allow_html=True)
 
-elif source == "fb":
-    items_to_validate = collect_from_fb()
-    if items_to_validate:
-        st.markdown(
-            f'<div class="info-banner">'
-            f'{len(items_to_validate)} Facebook pages with emails loaded.</div>',
-            unsafe_allow_html=True)
-    else:
-        st.markdown('<div class="warn-banner">No Facebook results found. Run the Facebook extractor first.</div>',
-                    unsafe_allow_html=True)
+with col_ctrl:
+    st.markdown('<span class="sec-label">Options</span>', unsafe_allow_html=True)
+    delay_val = st.slider("Delay between requests (s)", 2, 8, 4, key="fb_delay_s",
+                          help="Facebook rate-limits aggressively. Recommended: 3-5s")
+    parallel_fb = st.toggle("2x parallel", value=st.session_state.fb_parallel, key="fb_par",
+                             help="Scrape 2 handles simultaneously. May increase block rate.")
+    st.session_state.fb_parallel = parallel_fb
 
-# ── VALIDATE CONTROLS ─────────────────────────────────────────────────────────
-st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
-vc1, vc2, vc3 = st.columns([2, 1, 1])
+    st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
 
-with vc1:
-    already_validated = len([r for r in st.session_state.val_results if r.get("val")])
-    running = st.session_state.get("val_running", False)
-
+    running = st.session_state.get("fb_running", False)
     if not running:
-        can_start = bool(items_to_validate)
-        btn_label = f"Validate {len(items_to_validate)} email(s)" if items_to_validate else "Validate"
-        if st.button(btn_label, type="primary", use_container_width=True,
-                     disabled=not can_start, key="val_start"):
-            # reset and load queue
-            st.session_state.val_results  = [{**item, "val":None} for item in items_to_validate]
-            st.session_state.val_queue    = list(range(len(items_to_validate)))
-            st.session_state.val_idx      = 0
-            st.session_state.val_running  = True
-            st.rerun()
+        if st.button("Start Extraction", type="primary", use_container_width=True,
+                     disabled=not handles_to_scrape, key="fb_start"):
+            new_handles = [h for h in handles_to_scrape if h not in st.session_state.fb_results]
+            if new_handles:
+                st.session_state.fb_queue  = new_handles
+                st.session_state.fb_idx    = 0
+                st.session_state.fb_running = True
+                st.rerun()
     else:
-        if st.button("Stop", type="secondary", use_container_width=True, key="val_stop"):
-            st.session_state.val_running = False; st.rerun()
+        if st.button("Stop", type="secondary", use_container_width=True, key="fb_stop"):
+            st.session_state.fb_running = False; st.rerun()
 
-with vc2:
-    if st.session_state.val_results:
-        if st.button("Clear", type="secondary", use_container_width=True, key="val_clear"):
-            st.session_state.val_results = []; st.rerun()
+    if st.session_state.fb_results:
+        if st.button("Clear results", type="secondary", use_container_width=True, key="fb_clear"):
+            st.session_state.fb_results = {}; st.rerun()
 
-with vc3:
+st.divider()
+
+# ── PROGRESS STRIP ────────────────────────────────────────────────────────────
+fb_results = st.session_state.get("fb_results", {})
+queue      = st.session_state.get("fb_queue", [])
+idx        = st.session_state.get("fb_idx", 0)
+running    = st.session_state.get("fb_running", False)
+
+if running and queue:
+    total  = len(queue)
+    pct    = round(idx / total * 100, 1) if total else 0
+    done   = len(fb_results)
     st.markdown(
-        '<div style="font-size:10.5px;color:#bbb;padding-top:10px">'
-        'Fallback chain: if best email fails, tries others in tier order</div>',
-        unsafe_allow_html=True)
+        f'<div class="prog-strip">'
+        f'<span class="pulse-dot"></span>'
+        f'<span class="prog-strip-text">Scraping {idx}/{total}</span>'
+        f'<div class="prog-strip-bar"><div class="prog-strip-fill" style="width:{pct}%"></div></div>'
+        f'<span class="prog-strip-text">{pct}%</span>'
+        f'</div>', unsafe_allow_html=True)
 
-# ── LIVE PROGRESS ─────────────────────────────────────────────────────────────
-val_results = st.session_state.get("val_results", [])
+# ── RESULTS METRICS ───────────────────────────────────────────────────────────
+if fb_results:
+    total_h  = len(fb_results)
+    has_em   = sum(1 for r in fb_results.values() if r.get("emails"))
+    total_em = sum(len(r.get("emails",[])) for r in fb_results.values())
+    blocked  = sum(1 for r in fb_results.values() if r.get("status")=="blocked")
+    t1_count = sum(1 for r in fb_results.values()
+                   for e in r.get("emails",[]) if tier_key(e)=="1")
 
-if running or val_results:
-    n_total     = len(val_results)
-    n_validated = sum(1 for r in val_results if r.get("val"))
-    n_del   = sum(1 for r in val_results if (r.get("val") or {}).get("status")=="Deliverable")
-    n_risk  = sum(1 for r in val_results if (r.get("val") or {}).get("status")=="Risky")
-    n_bad   = sum(1 for r in val_results if (r.get("val") or {}).get("status")=="Not Deliverable")
-    n_fb_   = sum(1 for r in val_results if r.get("was_fallback"))
+    m1,m2,m3,m4,m5 = st.columns(5)
+    m1.metric("Pages", total_h)
+    m2.metric("With Emails", has_em)
+    m3.metric("Total Emails", total_em)
+    m4.metric("Tier 1", t1_count)
+    m5.metric("Blocked", blocked)
+    st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
 
-    if running:
-        pct = round(n_validated / n_total * 100, 1) if n_total else 0
-        st.markdown(
-            f'<div style="font-size:11px;color:#888;margin-bottom:3px">'
-            f'Validating {n_validated} / {n_total}...</div>'
-            f'<div class="val-prog"><div class="val-prog-fill" style="width:{pct}%"></div></div>',
-            unsafe_allow_html=True)
+# ── RESULTS FEED ──────────────────────────────────────────────────────────────
+if fb_results:
+    st.markdown('<span class="sec-label">Results</span>', unsafe_allow_html=True)
 
-    if n_validated > 0:
-        m1,m2,m3,m4,m5 = st.columns(5)
-        m1.metric("Checked",     n_validated)
-        m2.metric("Deliverable", n_del)
-        m3.metric("Risky",       n_risk)
-        m4.metric("Failed",      n_bad)
-        m5.metric("Fallback ↻",  n_fb_)
+    def sort_key(item):
+        _,r=item
+        if r.get("emails"):   return 0
+        if r.get("status")=="blocked": return 2
+        return 1
 
-# ── RESULTS TABLE ─────────────────────────────────────────────────────────────
-if val_results:
-    st.divider()
+    sorted_results = sorted(fb_results.items(), key=sort_key)
 
-    search = st.text_input("vs", placeholder="Search...", label_visibility="collapsed", key="val_search_in")
+    n = len(sorted_results)
+    left_items  = sorted_results[:n//2 + n%2]
+    right_items = sorted_results[n//2 + n%2:]
 
-    rows = []
-    for r in val_results:
-        val_    = r.get("val") or {}
-        status  = val_.get("status","")
-        email   = r.get("email","")
-        was_fb  = r.get("was_fallback",False)
-        orig    = r.get("original_email","")
-        conf    = r.get("confidence")
-        source  = r.get("source","")
+    gc1, gc2 = st.columns(2, gap="small")
+    for col, items in [(gc1, left_items), (gc2, right_items)]:
+        with col:
+            for handle, r in items:
+                emails  = r.get("emails", [])
+                status  = r.get("status", "")
+                elapsed = r.get("time", "")
+                best    = pick_best(emails) or ""
 
-        email_disp = email
-        if was_fb: email_disp += " ↻"
+                card_cls = "fb-card"
+                if emails:      card_cls += " has-emails"
+                elif status=="blocked": card_cls += " blocked"
+                else:           card_cls += " no-emails"
 
-        status_icon = {"Deliverable":"✅","Risky":"⚠️","Not Deliverable":"❌"}.get(status,"")
-        if not val_: status_icon = "⏳"
+                status_icon = {"scraped":"✓","blocked":"✗","no_emails":"○"}.get(status,"?")
+                status_color= {"scraped":"var(--dk-accent)","blocked":"var(--dk-danger)","no_emails":"var(--dk-text-muted)"}.get(status,"var(--dk-text-muted)")
 
-        orig_note = f"was: {orig}" if was_fb and orig and orig!=email else ""
+                emails_html = ""
+                for email in emails[:4]:
+                    t = tier_key(email)
+                    cls  = {"1":"fb-t1","2":"fb-t2","3":"fb-t3"}[t]
+                    badge_cls = {"1":"tb-t1","2":"tb-t2","3":"tb-t3"}[t]
+                    emails_html += (
+                        f'<div class="fb-email">'
+                        f'<span class="{cls}">{email}</span>'
+                        f'<span class="tier-badge {badge_cls}">T{t}</span>'
+                        f'</div>')
+                if len(emails) > 4:
+                    emails_html += f'<div style="font-size:10px;color:var(--dk-text-muted);margin-top:5px">+ {len(emails)-4} more</div>'
+                if not emails:
+                    emails_html = f'<div style="font-size:10.5px;color:var(--dk-text-muted);margin-top:5px">' \
+                                  f'{"Blocked by Facebook" if status=="blocked" else "No emails found"}</div>'
 
-        rows.append({
-            "#":       len(rows)+1,
-            "Status":  status_icon + (" " + status if status else " pending"),
-            "Email":   email_disp,
-            "Domain":  r.get("domain",""),
-            "Source":  source,
-            "Tier":    tier_short(email) if email else "—",
-            "Score":   conf if conf is not None else "—",
-            "Reason":  val_.get("reason","—") if val_ else "—",
-            "SPF":     ("✓" if val_.get("spf") else "✗") if val_ else "—",
-            "DMARC":   ("✓" if val_.get("dmarc") else "✗") if val_ else "—",
-            "Catch-all":("⚠" if val_.get("catch_all") else "—") if val_ else "—",
-            "Fallback": "↻ " + orig_note if was_fb else "—",
-        })
+                st.markdown(f"""
+                <div class="{card_cls}">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                    <span class="fb-handle">{handle}</span>
+                    <span style="font-size:10px;color:{status_color};font-weight:600;font-family:JetBrains Mono,monospace">
+                      {status_icon} {status} &nbsp;·&nbsp; {elapsed}s
+                    </span>
+                  </div>
+                  {emails_html}
+                </div>""", unsafe_allow_html=True)
 
-    df = pd.DataFrame(rows)
+elif not running:
+    st.markdown(
+        '<div style="text-align:center;padding:80px 0">'
+        '<div style="width:72px;height:72px;border-radius:20px;'
+        'background:var(--dk-fb-dim);border:1px solid var(--dk-border);'
+        'display:inline-flex;align-items:center;justify-content:center;'
+        'margin-bottom:20px;font-size:28px;font-weight:800;color:var(--dk-fb)">f</div>'
+        '<div style="font-size:18px;font-weight:800;color:var(--dk-text);'
+        'letter-spacing:-.5px;margin-bottom:10px">No results yet</div>'
+        '<div style="font-size:12px;color:var(--dk-text-muted);line-height:2;max-width:300px;margin:0 auto">'
+        'Paste Facebook handles or page URLs<br>'
+        'Import from Scraper if you already ran a scrape<br>'
+        '<span style="color:var(--dk-fb);font-weight:600">Tip: /about pages often have contact emails</span></div>'
+        '</div>', unsafe_allow_html=True)
 
-    if search:
-        m = (df["Email"].str.contains(search,case=False,na=False) |
-             df["Domain"].str.contains(search,case=False,na=False))
-        df = df[m]
-
-    st.caption(f'Showing **{len(df)}** of {len(val_results)} &nbsp;|&nbsp; '
-               f'↻ = fallback email used (original was not deliverable)')
-
-    st.dataframe(df, use_container_width=True, hide_index=True,
-                 height=min(600, 44+max(len(df),1)*36),
-                 column_config={
-                     "#":          st.column_config.NumberColumn("#",       width=40),
-                     "Status":     st.column_config.TextColumn("Status",    width=160),
-                     "Email":      st.column_config.TextColumn("Email",     width=210),
-                     "Domain":     st.column_config.TextColumn("Domain",    width=150),
-                     "Source":     st.column_config.TextColumn("Source",    width=75),
-                     "Tier":       st.column_config.TextColumn("Tier",      width=65),
-                     "Score":      st.column_config.NumberColumn("Score",   width=52),
-                     "Reason":     st.column_config.TextColumn("Reason",    width=170),
-                     "SPF":        st.column_config.TextColumn("SPF",       width=38),
-                     "DMARC":      st.column_config.TextColumn("DMARC",     width=50),
-                     "Catch-all":  st.column_config.TextColumn("Catch-all", width=65),
-                     "Fallback":   st.column_config.TextColumn("Fallback",  width=160),
-                 })
-
-# ── VALIDATION ENGINE ─────────────────────────────────────────────────────────
-if st.session_state.get("val_running"):
-    val_results = st.session_state.val_results
-    idx         = st.session_state.val_idx
-    total       = len(val_results)
+# ── SCRAPE ENGINE ─────────────────────────────────────────────────────────────
+if st.session_state.get("fb_running") and st.session_state.get("fb_queue"):
+    queue = st.session_state.fb_queue
+    idx   = st.session_state.fb_idx
+    total = len(queue)
+    delay = st.session_state.get("fb_delay_s", 4)
+    par   = st.session_state.get("fb_parallel", True)
+    BATCH = 2 if par else 1
 
     if idx >= total:
-        st.session_state.val_running = False; st.rerun()
+        st.session_state.fb_running = False; st.rerun()
     else:
-        row = val_results[idx]
-        email    = row.get("email","")
-        all_e    = row.get("all_emails",[email]) or [email]
-        original = row.get("original_email", email)
+        batch = queue[idx:idx+BATCH]
 
-        if email and is_valid_email(email):
-            chosen, vres, was_fb, orig_status = validate_with_fallback(all_e, email)
-            if vres:
-                conf_ = confidence_score(chosen, vres)
-                st.session_state.val_results[idx].update({
-                    "email":      chosen,
-                    "val":        vres,
-                    "was_fallback": was_fb,
-                    "original_email": original if was_fb else email,
-                    "confidence": conf_,
-                })
+        def run_fb(handle):
+            return handle, scrape_fb_handle(handle, delay=delay)
+
+        if BATCH > 1 and len(batch) > 1:
+            with ThreadPoolExecutor(max_workers=BATCH) as ex:
+                futs = [ex.submit(run_fb, h) for h in batch]
+                for fut in as_completed(futs):
+                    try:
+                        handle, result = fut.result()
+                        st.session_state.fb_results[handle] = result
+                    except Exception:
+                        pass
         else:
-            # not valid — mark as failed
-            st.session_state.val_results[idx]["val"] = {
-                "status":"Not Deliverable","reason":"Invalid format",
-                "spf":False,"dmarc":False,"mx":False,"catch_all":False,
-            }
+            try:
+                handle, result = run_fb(batch[0])
+                st.session_state.fb_results[handle] = result
+            except Exception:
+                pass
 
-        st.session_state.val_idx = idx + 1
-        if st.session_state.val_idx >= total:
-            st.session_state.val_running = False
+        st.session_state.fb_idx = idx + len(batch)
+        if st.session_state.fb_idx >= total:
+            st.session_state.fb_running = False
         st.rerun()
