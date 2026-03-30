@@ -23,139 +23,302 @@ from utils import (
 # ── PAGE CSS ──────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+    --surface: #ffffff;
+    --surface-alt: #f8fafc;
+    --surface-dim: #f1f5f9;
+    --bg: #f1f0ee;
+    --border: #e8e8e6;
+    --border-subtle: #f0f0ee;
+    --text: #0f172a;
+    --text-secondary: #64748b;
+    --text-tertiary: #94a3b8;
+    --accent: #6366f1;
+    --accent-hover: #4f46e5;
+    --accent-dim: rgba(99,102,241,0.08);
+    --accent-glow: rgba(99,102,241,0.15);
+    --success: #10b981;
+    --success-dim: rgba(16,185,129,0.08);
+    --warning: #f59e0b;
+    --warning-dim: rgba(245,158,11,0.08);
+    --danger: #ef4444;
+    --danger-dim: rgba(239,68,68,0.08);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-xs: 6px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04);
+    --shadow-lg: 0 10px 30px rgba(0,0,0,0.08), 0 4px 8px rgba(0,0,0,0.04);
+}
+
 *, html, body, [class*="css"] { font-family: 'Inter', system-ui, sans-serif !important; }
 #MainMenu, footer, header { visibility: hidden; }
-.block-container { padding: 1.4rem 1.8rem 4rem !important; max-width:100% !important; background:#f5f5f3 !important; }
+.block-container {
+    padding: 1.6rem 2rem 4rem !important;
+    max-width: 100% !important;
+    background: var(--bg) !important;
+    background-image: radial-gradient(circle at 1px 1px, rgba(0,0,0,0.025) 1px, transparent 0) !important;
+    background-size: 28px 28px !important;
+}
 
 [data-testid="column"]:first-of-type {
-    background:#fff; border-radius:14px; border:1px solid #e8e8e6;
-    padding:1.2rem 1.1rem 1rem !important;
+    background: var(--surface) !important;
+    border-radius: 16px !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: var(--shadow-md) !important;
+    padding: 1.4rem 1.2rem 1.2rem !important;
+    position: relative;
+    overflow: hidden;
 }
-.logo { font-size:18px; font-weight:800; color:#111; letter-spacing:-.5px;
-        display:flex; align-items:center; gap:9px; margin-bottom:2px; }
-.logo-box { width:32px; height:32px; background:#111; border-radius:8px;
-            display:flex; align-items:center; justify-content:center;
-            font-size:16px; flex-shrink:0; color:#fff; }
-.logo-tag { font-size:11px; color:#bbb; font-weight:400; }
-.sec { font-size:9.5px; font-weight:700; letter-spacing:1.3px;
-       text-transform:uppercase; color:#c0c0bc; display:block; margin-bottom:5px; }
+[data-testid="column"]:first-of-type::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), #a78bfa, var(--accent));
+    background-size: 200% 100%;
+    animation: gradient-slide 3s ease infinite;
+}
+@keyframes gradient-slide {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+.logo {
+    font-size: 18px; font-weight: 900; color: var(--text);
+    letter-spacing: -0.6px; display: flex; align-items: center;
+    gap: 11px; margin-bottom: 2px;
+}
+.logo-box {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0; color: #fff;
+    box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+}
+.logo-tag { font-size: 10.5px; color: var(--text-tertiary); font-weight: 500; }
+.sec {
+    font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--text-tertiary);
+    display: block; margin-bottom: 6px;
+}
 
 .stButton > button {
-    font-family:'Inter',sans-serif !important; font-weight:600 !important;
-    border-radius:8px !important; font-size:12.5px !important; height:36px !important;
-    transition:all 0.13s !important;
+    font-family: 'Inter', sans-serif !important; font-weight: 600 !important;
+    border-radius: var(--radius-sm) !important; font-size: 12px !important;
+    height: 36px !important; transition: all 0.2s ease !important;
+    position: relative; overflow: hidden;
 }
 .stButton > button[kind="primary"] {
-    background:#111 !important; border:2px solid #111 !important;
-    color:#fff !important; box-shadow:0 1px 2px rgba(0,0,0,.15) !important;
+    background: linear-gradient(135deg, var(--accent) 0%, #7c3aed 100%) !important;
+    border: none !important; color: #fff !important;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.3), inset 0 1px 0 rgba(255,255,255,0.15) !important;
 }
 .stButton > button[kind="primary"]:hover {
-    background:#2d2d2d !important; transform:translateY(-1px) !important;
-    box-shadow:0 3px 10px rgba(0,0,0,.2) !important;
+    box-shadow: 0 4px 16px rgba(99,102,241,0.4), inset 0 1px 0 rgba(255,255,255,0.2) !important;
+    transform: translateY(-1px) !important;
 }
 .stButton > button[kind="primary"]:disabled {
-    background:#e4e4e4 !important; border-color:#e4e4e4 !important;
-    color:#aaa !important; box-shadow:none !important; transform:none !important;
+    background: var(--surface-dim) !important;
+    color: #cbd5e1 !important; box-shadow: none !important; transform: none !important;
 }
 .stButton > button[kind="secondary"] {
-    background:#fff !important; border:1.5px solid #ddd !important; color:#555 !important;
+    background: var(--surface) !important; border: 1px solid var(--border) !important;
+    color: var(--text-secondary) !important;
 }
 .stButton > button[kind="secondary"]:hover {
-    border-color:#999 !important; color:#111 !important; background:#fafaf8 !important;
+    border-color: var(--accent) !important; color: var(--accent) !important;
+    background: var(--accent-dim) !important;
 }
-.start-wrap .stButton > button { height:42px !important; font-size:14px !important; font-weight:700 !important; }
+.start-wrap .stButton > button {
+    height: 44px !important; font-size: 13.5px !important;
+    font-weight: 700 !important; border-radius: var(--radius) !important;
+}
 .stDownloadButton > button {
-    font-family:'Inter',sans-serif !important; font-weight:600 !important;
-    border-radius:8px !important; font-size:12.5px !important; height:36px !important;
-    background:#fff !important; border:1.5px solid #ddd !important; color:#555 !important;
+    font-family: 'Inter', sans-serif !important; font-weight: 600 !important;
+    border-radius: var(--radius-sm) !important; font-size: 12px !important;
+    height: 36px !important; background: var(--surface) !important;
+    border: 1px solid var(--border) !important; color: var(--text-secondary) !important;
 }
-.stDownloadButton > button:hover { border-color:#999 !important; color:#111 !important; }
+.stDownloadButton > button:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
+
 .stTextArea textarea {
-    font-size:12px !important; border-radius:8px !important;
-    border:1.5px solid #e4e4e0 !important; background:#fafaf8 !important;
-    line-height:1.6 !important; resize:none !important; color:#333 !important;
+    font-size: 12px !important; border-radius: var(--radius-sm) !important;
+    border: 1.5px solid var(--border) !important; background: var(--surface-alt) !important;
+    line-height: 1.65 !important; resize: none !important; color: var(--text) !important;
+    transition: border-color 0.2s, box-shadow 0.2s !important;
 }
-.stTextArea textarea:focus { border-color:#111 !important; box-shadow:0 0 0 3px rgba(0,0,0,.05) !important; }
-.stTextArea textarea::placeholder { color:#ccc !important; }
+.stTextArea textarea:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px var(--accent-glow) !important;
+}
+.stTextArea textarea::placeholder { color: #cbd5e1 !important; }
 .stTextInput > div > input {
-    border-radius:8px !important; border:1.5px solid #e4e4e0 !important;
-    font-size:13px !important; height:36px !important; background:#fafaf8 !important;
+    border-radius: var(--radius-sm) !important; border: 1.5px solid var(--border) !important;
+    font-size: 13px !important; height: 36px !important; background: var(--surface-alt) !important;
+    transition: border-color 0.2s, box-shadow 0.2s !important;
 }
-.stTextInput > div > input:focus { border-color:#111 !important; box-shadow:0 0 0 3px rgba(0,0,0,.05) !important; }
+.stTextInput > div > input:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px var(--accent-glow) !important;
+}
+
 [data-testid="stHorizontalRadio"] {
-    background:#eeeeed !important; border-radius:10px !important;
-    padding:3px !important; border:1px solid #e2e2e0 !important;
+    background: var(--surface-dim) !important; border-radius: var(--radius-sm) !important;
+    padding: 3px !important; border: 1px solid var(--border) !important;
 }
 [data-testid="stHorizontalRadio"] label {
-    font-size:11.5px !important; font-weight:600 !important; border-radius:7px !important;
-    padding:5px 10px !important; color:#999 !important; flex:1 !important;
-    text-align:center !important; cursor:pointer !important;
+    font-size: 11px !important; font-weight: 600 !important;
+    border-radius: 6px !important; padding: 5px 8px !important;
+    color: var(--text-tertiary) !important; flex: 1 !important;
+    text-align: center !important; cursor: pointer !important;
+    transition: all 0.2s !important;
 }
 [data-testid="stHorizontalRadio"] label:has(input:checked) {
-    background:#fff !important; color:#111 !important; box-shadow:0 1px 4px rgba(0,0,0,.1) !important;
+    background: var(--surface) !important; color: var(--text) !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
 }
-[data-testid="stHorizontalRadio"] [data-baseweb="radio"] { display:none !important; }
-[data-testid="stMetric"] { background:#fff; border:1px solid #eaeae6; border-radius:10px; padding:.7rem .85rem !important; }
-[data-testid="stMetricLabel"] p { font-size:9.5px !important; font-weight:700 !important; color:#bbb !important; text-transform:uppercase !important; letter-spacing:.6px !important; }
-[data-testid="stMetricValue"] { font-size:22px !important; font-weight:800 !important; color:#111 !important; letter-spacing:-.7px !important; }
-.log-box { background:#1c1c1c; border-radius:8px; padding:10px 12px;
-    font-family:'Courier New',Courier,monospace; font-size:10.5px; line-height:1.8;
-    max-height:210px; overflow-y:auto; margin-top:6px; }
-.log-box::-webkit-scrollbar { width:4px; }
-.log-box::-webkit-scrollbar-thumb { background:#444; border-radius:2px; }
-.ll-site  { color:#fff; font-weight:700; border-top:1px solid #2a2a2a; margin-top:4px; padding-top:4px; }
-.ll-site:first-child { border-top:none; margin-top:0; padding-top:0; }
-.ll-email { color:#4ade80; font-weight:600; }
-.ll-page  { color:#444; }
-.ll-skip  { color:#fb923c; }
-.ll-timing{ color:#3a3a3a; font-size:10px; }
-.ll-done  { color:#555; }
-.ll-info  { color:#444; }
-.ll-warn  { color:#f87171; }
-.prog-wrap { margin:8px 0 2px; }
-.prog-top  { display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:600; color:#333; margin-bottom:5px; }
-.prog-right{ font-size:11px; color:#aaa; font-weight:400; }
-.prog-track{ height:4px; background:#eee; border-radius:99px; overflow:hidden; }
-.prog-fill { height:100%; border-radius:99px; transition:width .4s ease; }
-.scan-dot  { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; animation:pulse 1.5s infinite; }
-@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.25;transform:scale(.8)} }
-.mode-strip { display:flex; align-items:flex-start; gap:9px; padding:8px 11px;
-    border-radius:8px; background:#f8f8f6; border:1px solid #e8e8e4; margin:5px 0 0; }
-.mode-dot  { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:4px; }
-.mode-name { font-size:12px; font-weight:700; }
-.mode-tip  { font-size:10.5px; color:#888; margin-top:2px; line-height:1.45; }
-.pills { display:flex; flex-wrap:wrap; gap:3px; margin:5px 0 0; }
-.pill  { font-size:10.5px; background:#eeeeed; border:1px solid #e0e0dc; border-radius:4px; padding:2px 7px; color:#888; }
-.flt-bar .stButton > button { height:27px !important; font-size:10.5px !important; border-radius:99px !important; padding:0 9px !important; font-weight:600 !important; }
-.flt-bar .stButton > button[kind="secondary"] { background:#eeeeed !important; border:1px solid #e0e0dc !important; color:#888 !important; }
-.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(1) button[kind="primary"]{background:#111 !important;border-color:#111 !important;color:#fff !important;}
-.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(2) button[kind="primary"]{background:#d97706 !important;border-color:#d97706 !important;color:#fff !important;}
-.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(3) button[kind="primary"]{background:#6366f1 !important;border-color:#6366f1 !important;color:#fff !important;}
-.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(4) button[kind="primary"]{background:#64748b !important;border-color:#64748b !important;color:#fff !important;}
-.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(5) button[kind="primary"]{background:#e11d48 !important;border-color:#e11d48 !important;color:#fff !important;}
-.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(6) button[kind="primary"]{background:#16a34a !important;border-color:#16a34a !important;color:#fff !important;}
-.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(7) button[kind="primary"]{background:#d97706 !important;border-color:#d97706 !important;color:#fff !important;}
-.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(8) button[kind="primary"]{background:#dc2626 !important;border-color:#dc2626 !important;color:#fff !important;}
-.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(2) button[kind="secondary"]{color:#92400e !important;background:#fffbeb !important;border-color:#fde68a !important;}
-.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(3) button[kind="secondary"]{color:#4338ca !important;background:#eef2ff !important;border-color:#c7d2fe !important;}
-.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(4) button[kind="secondary"]{color:#475569 !important;background:#f1f5f9 !important;border-color:#cbd5e1 !important;}
-.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(5) button[kind="secondary"]{color:#be123c !important;background:#fff1f2 !important;border-color:#fecdd3 !important;}
-.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(6) button[kind="secondary"]{color:#15803d !important;background:#f0fdf4 !important;border-color:#bbf7d0 !important;}
-.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(7) button[kind="secondary"]{color:#92400e !important;background:#fffbeb !important;border-color:#fde68a !important;}
-.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(8) button[kind="secondary"]{color:#b91c1c !important;background:#fff5f5 !important;border-color:#fecaca !important;}
-.act-card { background:#fafaf8; border:1px solid #e8e8e4; border-radius:10px; padding:11px 13px; margin-top:3px; }
-.val-result { margin-top:8px; font-size:11.5px; color:#666; padding:6px 9px;
-    background:#fff; border:1px solid #eee; border-radius:6px; line-height:1.6; }
-.stTabs [data-baseweb="tab-list"] { gap:2px !important; background:#eeeeed !important; border-radius:8px !important; padding:3px !important; border:1px solid #e2e2e0 !important; }
-.stTabs [data-baseweb="tab"] { font-size:11.5px !important; font-weight:600 !important; border-radius:6px !important; padding:4px 12px !important; color:#999 !important; }
-.stTabs [aria-selected="true"] { background:#fff !important; color:#111 !important; box-shadow:0 1px 3px rgba(0,0,0,.08) !important; }
-.stTabs [data-baseweb="tab-highlight"], .stTabs [data-baseweb="tab-border"] { display:none !important; }
-details { border:1px solid #e8e8e4 !important; border-radius:8px !important; }
-details > summary { font-size:12px !important; font-weight:600 !important; color:#444 !important; padding:9px 13px !important; }
-details[open] > summary { border-bottom:1px solid #f0f0ee !important; }
-hr { border-color:#eeeeec !important; margin:10px 0 !important; }
-[data-testid="stSlider"] > div > div > div > div { background:#111 !important; }
+[data-testid="stHorizontalRadio"] [data-baseweb="radio"] { display: none !important; }
+
+[data-testid="stMetric"] {
+    background: var(--surface) !important; border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important; padding: .8rem 1rem !important;
+    box-shadow: var(--shadow-sm) !important;
+    transition: box-shadow 0.2s, transform 0.2s !important;
+}
+[data-testid="stMetric"]:hover {
+    box-shadow: var(--shadow-md) !important; transform: translateY(-1px) !important;
+}
+[data-testid="stMetricLabel"] p {
+    font-size: 9px !important; font-weight: 700 !important;
+    color: var(--text-tertiary) !important; text-transform: uppercase !important;
+    letter-spacing: 0.8px !important;
+}
+[data-testid="stMetricValue"] {
+    font-size: 24px !important; font-weight: 900 !important;
+    color: var(--text) !important; letter-spacing: -0.8px !important;
+}
+
+.log-box {
+    background: #0f172a; border-radius: var(--radius-sm);
+    padding: 12px 14px; font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; line-height: 1.9; max-height: 220px;
+    overflow-y: auto; margin-top: 6px;
+    border: 1px solid #1e293b;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
+}
+.log-box::-webkit-scrollbar { width: 4px; }
+.log-box::-webkit-scrollbar-track { background: transparent; }
+.log-box::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+.ll-site  { color: #e2e8f0; font-weight: 600; border-top: 1px solid #1e293b; margin-top: 4px; padding-top: 4px; }
+.ll-site:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+.ll-email { color: #34d399; font-weight: 600; text-shadow: 0 0 8px rgba(52,211,153,0.3); }
+.ll-page  { color: #475569; }
+.ll-skip  { color: #fb923c; font-weight: 500; }
+.ll-timing{ color: #334155; font-size: 9.5px; }
+.ll-done  { color: #64748b; }
+.ll-info  { color: #334155; }
+.ll-warn  { color: #f87171; font-weight: 500; }
+
+.prog-wrap { margin: 10px 0 2px; }
+.prog-top  { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.prog-right{ font-size: 10.5px; color: var(--text-tertiary); font-weight: 500; }
+.prog-track{ height: 4px; background: var(--surface-dim); border-radius: 99px; overflow: hidden; position: relative; }
+.prog-fill { height: 100%; border-radius: 99px; transition: width 0.5s ease; position: relative; overflow: hidden; }
+.prog-fill::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.scan-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    margin-right: 8px; animation: dot-glow 1.5s ease-in-out infinite;
+}
+@keyframes dot-glow {
+    0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 4px currentColor; }
+    50% { opacity: 0.4; transform: scale(0.8); box-shadow: 0 0 0 currentColor; }
+}
+
+.mode-strip {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 12px; border-radius: var(--radius-sm);
+    background: var(--surface-alt); border: 1px solid var(--border-subtle);
+    margin: 6px 0 0;
+}
+.mode-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+.mode-name { font-size: 12px; font-weight: 700; }
+.mode-tip  { font-size: 10px; color: var(--text-tertiary); margin-top: 2px; line-height: 1.5; }
+
+.pills { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 0; }
+.pill  {
+    font-size: 10px; background: var(--surface-dim); border: 1px solid var(--border);
+    border-radius: 99px; padding: 2px 10px; color: var(--text-secondary);
+    font-weight: 500; transition: all 0.15s;
+}
+.pill:hover { border-color: var(--accent); color: var(--accent); }
+
+.flt-bar .stButton > button {
+    height: 28px !important; font-size: 10.5px !important;
+    border-radius: 99px !important; padding: 0 10px !important;
+    font-weight: 600 !important;
+}
+.flt-bar .stButton > button[kind="secondary"] {
+    background: var(--surface) !important; border: 1px solid var(--border) !important; color: var(--text-tertiary) !important;
+}
+.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(1) button[kind="primary"]{background:var(--text)!important;border-color:var(--text)!important;color:#fff!important;}
+.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(2) button[kind="primary"]{background:#d97706!important;border-color:#d97706!important;color:#fff!important;}
+.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(3) button[kind="primary"]{background:#6366f1!important;border-color:#6366f1!important;color:#fff!important;}
+.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(4) button[kind="primary"]{background:#64748b!important;border-color:#64748b!important;color:#fff!important;}
+.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(5) button[kind="primary"]{background:#ef4444!important;border-color:#ef4444!important;color:#fff!important;}
+.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(6) button[kind="primary"]{background:#10b981!important;border-color:#10b981!important;color:#fff!important;}
+.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(7) button[kind="primary"]{background:#f59e0b!important;border-color:#f59e0b!important;color:#fff!important;}
+.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(8) button[kind="primary"]{background:#ef4444!important;border-color:#ef4444!important;color:#fff!important;}
+.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(2) button[kind="secondary"]{color:#92400e!important;background:#fffbeb!important;border-color:#fde68a!important;}
+.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(3) button[kind="secondary"]{color:#4338ca!important;background:#eef2ff!important;border-color:#c7d2fe!important;}
+.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(4) button[kind="secondary"]{color:#475569!important;background:#f1f5f9!important;border-color:#cbd5e1!important;}
+.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(5) button[kind="secondary"]{color:#be123c!important;background:#fff1f2!important;border-color:#fecdd3!important;}
+.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(6) button[kind="secondary"]{color:#15803d!important;background:#f0fdf4!important;border-color:#bbf7d0!important;}
+.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(7) button[kind="secondary"]{color:#92400e!important;background:#fffbeb!important;border-color:#fde68a!important;}
+.flt-bar [data-testid="stHorizontalBlock"]>div:nth-child(8) button[kind="secondary"]{color:#b91c1c!important;background:#fff5f5!important;border-color:#fecaca!important;}
+
+.act-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px; margin-top: 4px;
+    box-shadow: var(--shadow-sm);
+}
+.val-result {
+    margin-top: 10px; font-size: 11px; color: var(--text-secondary);
+    padding: 8px 12px; background: var(--surface-alt);
+    border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+    line-height: 1.7;
+}
+
+.stTabs [data-baseweb="tab-list"] {
+    gap: 2px !important; background: var(--surface-dim) !important;
+    border-radius: var(--radius-sm) !important; padding: 3px !important;
+    border: 1px solid var(--border) !important;
+}
+.stTabs [data-baseweb="tab"] {
+    font-size: 11px !important; font-weight: 600 !important;
+    border-radius: 6px !important; padding: 5px 12px !important;
+    color: var(--text-tertiary) !important; transition: all 0.2s !important;
+}
+.stTabs [aria-selected="true"] {
+    background: var(--surface) !important; color: var(--text) !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+.stTabs [data-baseweb="tab-highlight"], .stTabs [data-baseweb="tab-border"] { display: none !important; }
+
+details { border: 1px solid var(--border) !important; border-radius: var(--radius-sm) !important; }
+details > summary { font-size: 11.5px !important; font-weight: 600 !important; color: var(--text-secondary) !important; padding: 10px 14px !important; }
+details[open] > summary { border-bottom: 1px solid var(--border-subtle) !important; }
+hr { border-color: var(--border-subtle) !important; margin: 12px 0 !important; }
+[data-testid="stSlider"] > div > div > div > div { background: var(--accent) !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -176,19 +339,19 @@ HUNT_KEYWORDS = [
 ]
 MODE_CFG = {
     "Quick":   {"quick":True,"max_pages":0,"max_depth":0,"sitemap":False,"delay":0.05,"hunt":False,
-                "color":"#7c3aed","tag":"Sitemap top-4 priority pages",
+                "color":"#8b5cf6","tag":"Sitemap top-4 priority pages",
                 "tip":"Reads sitemap, scores URLs, scrapes top 4 contact/about pages. ~5-15s per site."},
     "Easy":    {"quick":False,"max_pages":5,"max_depth":0,"sitemap":False,"delay":0.2,"hunt":False,
-                "color":"#16a34a","tag":"Priority pages + homepage",
+                "color":"#10b981","tag":"Priority pages + homepage",
                 "tip":"Sitemap priority pages + homepage. Good for well-structured sites. ~30s."},
     "Medium":  {"quick":False,"max_pages":50,"max_depth":3,"sitemap":False,"delay":0.4,"hunt":False,
-                "color":"#d97706","tag":"Sitemap-first then crawl",
+                "color":"#f59e0b","tag":"Sitemap-first then crawl",
                 "tip":"Priority pages then up to 50 internal pages, 3 levels deep. 2-5 min."},
     "Extreme": {"quick":False,"max_pages":300,"max_depth":6,"sitemap":True,"delay":0.2,"hunt":False,
-                "color":"#dc2626","tag":"Full sitemap + deep crawl",
+                "color":"#ef4444","tag":"Full sitemap + deep crawl",
                 "tip":"Exhaustive — full sitemap plus 300-page crawl. 5-15 min per site."},
     "Hunt":    {"quick":False,"max_pages":8,"max_depth":1,"sitemap":False,"delay":0.1,"hunt":True,
-                "color":"#0891b2","tag":"Write-for-us and advertise only",
+                "color":"#06b6d4","tag":"Write-for-us and advertise only",
                 "tip":"Outreach mode — only scores write-for-us, advertise, sponsor, pitch pages."},
 }
 
@@ -394,8 +557,8 @@ def render_log(ph):
 h1,h2=st.columns([5,1])
 with h1:
     st.markdown('<div class="logo"><div class="logo-box">S</div>Scraper</div>'
-                '<div class="logo-tag">sitemap-first &nbsp;|&nbsp; parallel engine &nbsp;|&nbsp; '
-                'fallback validation &nbsp;|&nbsp; confidence scoring</div>',unsafe_allow_html=True)
+                '<div class="logo-tag">sitemap-first &nbsp;·&nbsp; parallel engine &nbsp;·&nbsp; '
+                'fallback validation &nbsp;·&nbsp; confidence scoring</div>',unsafe_allow_html=True)
 with h2:
     results=st.session_state.get("scraper_results",{})
     if results:
@@ -456,7 +619,7 @@ with left:
     chosen=st.radio("mode_r",MODE_LABELS,index=MODE_LABELS.index(cur_mode),horizontal=True,label_visibility="collapsed",key="mode_radio")
     if chosen!=st.session_state.scraper_mode: st.session_state.scraper_mode=chosen; st.rerun()
     mi=MODE_CFG[chosen]
-    st.markdown(f'<div class="mode-strip"><div class="mode-dot" style="background:{mi["color"]}"></div>'
+    st.markdown(f'<div class="mode-strip"><div class="mode-dot" style="background:{mi["color"]};box-shadow:0 0 8px {mi["color"]}55"></div>'
                 f'<div><div class="mode-name" style="color:{mi["color"]}">{chosen} &mdash; {mi["tag"]}</div>'
                 f'<div class="mode-tip">{mi["tip"]}</div></div></div>',unsafe_allow_html=True)
     mode_key=chosen
@@ -518,10 +681,10 @@ with left:
     if scan_state in ("running","paused") and st.session_state.scan_queue:
         idx=st.session_state.scan_idx; total=len(st.session_state.scan_queue)
         pct=round(idx/total*100,1) if total else 0; done=len(st.session_state.scraper_results)
-        paused_=scan_state=="paused"; dot_c="#fb923c" if paused_ else "#4ade80"; bar_c="#fb923c" if paused_ else "#16a34a"
+        paused_=scan_state=="paused"; dot_c="#f59e0b" if paused_ else "#10b981"; bar_c="#f59e0b" if paused_ else "var(--accent)"
         lbl="Paused" if paused_ else "Scanning"
         par_n=" | 4x parallel" if st.session_state.get("parallel",True) else ""
-        prog_ph.markdown(f'<div class="prog-wrap"><div class="prog-top"><span><span class="scan-dot" style="background:{dot_c}"></span>{lbl}</span><span class="prog-right">{done} done / {total} total{par_n}</span></div><div class="prog-track"><div class="prog-fill" style="width:{pct}%;background:{bar_c}"></div></div><div style="font-size:10px;color:#bbb;margin-top:2px;text-align:right">{pct}%</div></div>',unsafe_allow_html=True)
+        prog_ph.markdown(f'<div class="prog-wrap"><div class="prog-top"><span><span class="scan-dot" style="background:{dot_c};color:{dot_c}"></span>{lbl}</span><span class="prog-right">{done} done / {total} total{par_n}</span></div><div class="prog-track"><div class="prog-fill" style="width:{pct}%;background:{bar_c}"></div></div><div style="font-size:10px;color:var(--text-tertiary);margin-top:3px;text-align:right">{pct}%</div></div>',unsafe_allow_html=True)
     if st.session_state.log_lines: render_log(log_ph)
 
     st.divider()
@@ -553,7 +716,21 @@ with right:
     results=st.session_state.get("scraper_results",{}); scan_state=st.session_state.scan_state
     if not results:
         mi_=MODE_CFG.get(st.session_state.scraper_mode,MODE_CFG["Quick"])
-        st.markdown(f'<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 0;text-align:center"><div style="font-size:38px;margin-bottom:14px;opacity:.12">S</div><div style="font-size:17px;font-weight:800;color:#111;letter-spacing:-.4px;margin-bottom:12px">No results yet</div><div style="font-size:12px;color:#aaa;line-height:2;max-width:320px">Paste URLs on the left and hit <strong style="color:#333">Start Scan</strong><br><span style="color:{mi_["color"]};font-weight:600">{chosen} mode:</span> {mi_["tag"]}<br><span style="color:#bbb">Enable Parallel in Settings for 4x speed</span></div></div>',unsafe_allow_html=True)
+        st.markdown(f'''
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+            padding:90px 0;text-align:center">
+            <div style="width:72px;height:72px;border-radius:20px;
+                background:linear-gradient(135deg,var(--accent-dim),rgba(139,92,246,0.08));
+                border:1px solid var(--border);display:flex;align-items:center;justify-content:center;
+                margin-bottom:20px;font-size:28px;color:var(--accent);opacity:.6">S</div>
+            <div style="font-size:18px;font-weight:800;color:var(--text);letter-spacing:-.5px;
+                margin-bottom:10px">No results yet</div>
+            <div style="font-size:12px;color:var(--text-tertiary);line-height:2;max-width:300px">
+                Paste URLs on the left and hit <strong style="color:var(--text-secondary)">Start Scan</strong><br>
+                <span style="color:{mi_["color"]};font-weight:600">{chosen} mode:</span> {mi_["tag"]}<br>
+                <span style="color:var(--text-tertiary)">Enable Parallel in Settings for 4x speed</span>
+            </div>
+        </div>''',unsafe_allow_html=True)
     else:
         tot_d=len(results); tot_e=sum(len(r.get("All Emails",[])) for r in results.values())
         t1_cnt=sum(1 for r in results.values() if r.get("Best Tier","").startswith("Tier 1"))
@@ -567,11 +744,11 @@ with right:
             to_val=[d for d,r in results.items() if r.get("All Emails") and not r.get("Validation")]
             if to_val:
                 v1,v2=st.columns([4,1.3])
-                with v1: st.markdown(f'<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 13px;font-size:12px;color:#15803d;font-weight:600;margin:2px 0">{len(to_val)} domain(s) ready - uses fallback if best email fails</div>',unsafe_allow_html=True)
+                with v1: st.markdown(f'<div style="background:var(--success-dim);border:1px solid #bbf7d0;border-radius:var(--radius-sm);padding:9px 14px;font-size:12px;color:#15803d;font-weight:600;margin:4px 0">{len(to_val)} domain(s) ready — uses fallback if best email fails</div>',unsafe_allow_html=True)
                 with v2:
                     if st.button("Validate All",key="val_all",type="primary",use_container_width=True): st.session_state["run_validate_all"]=True; st.rerun()
 
-        search=st.text_input("s",placeholder="Search...",label_visibility="collapsed",key="srch")
+        search=st.text_input("s",placeholder="Search domains or emails...",label_visibility="collapsed",key="srch")
         FLT=[("All","All"),("T1","T1"),("T2","T2"),("T3","T3"),("None","None"),("OK","val_ok"),("Risk","val_risky"),("Fail","val_bad")]
         st.markdown('<div class="flt-bar">',unsafe_allow_html=True)
         fc=st.columns(len(FLT))
@@ -604,7 +781,7 @@ with right:
         elif flt=="val_ok": df=df[df["Val"]=="✅"]
         elif flt=="val_risky": df=df[df["Val"]=="⚠️"]
         elif flt=="val_bad": df=df[df["Val"]=="❌"]
-        st.caption(f'Showing {len(df)} of {tot_d}')
+        st.caption(f'Showing **{len(df)}** of {tot_d}')
         st.dataframe(df,use_container_width=True,hide_index=True,height=min(560,44+max(len(df),1)*36),
                      column_config={"Domain":st.column_config.TextColumn("Domain",width=148),"Email":st.column_config.TextColumn("Email",width=200),
                          "Tier":st.column_config.TextColumn("Tier",width=65),"Score":st.column_config.NumberColumn("Score",width=50),
@@ -633,7 +810,6 @@ with right:
             st.markdown(f'<div class="val-result"><strong>[{icon}] {vbest}</strong>{fb_fl}{score_h} &nbsp;|&nbsp; {val_d.get("reason","")} &nbsp;|&nbsp; {spf}{dmarc}</div>',unsafe_allow_html=True)
         st.markdown('</div>',unsafe_allow_html=True)
 
-        # validate single
         if sel and st.session_state.get(f"vrun_{sel}"):
             st.session_state[f"vrun_{sel}"]=False
             with st.spinner(f"Validating {sel}..."):
@@ -642,7 +818,6 @@ with right:
                 conf_=confidence_score(chosen_e,vres)
                 st.session_state.scraper_results[sel].update({"Validation":vres,"ValidatedBestEmail":chosen_e,"WasFallback":was_fb,"Confidence":conf_})
             st.rerun()
-        # validate all
         if st.session_state.get("run_validate_all"):
             st.session_state["run_validate_all"]=False
             todo=[(d,r) for d,r in results.items() if r.get("All Emails") and not r.get("Validation")]
@@ -684,7 +859,7 @@ if st.session_state.scan_state=="running":
             st.session_state.scraper_results[domain]=row
             st.session_state.scraper_domains.add(domain)
             st.session_state.log_lines.extend(logs)
-        st.session_state.scan_idx=idx+len(batch_urls)
+        st.session_state.scan_idx=idx+len(batch_results)
         time.sleep(cfg_snap.get("delay",0.1))
         if st.session_state.scan_idx>=total:
             st.session_state.scan_state="done"
