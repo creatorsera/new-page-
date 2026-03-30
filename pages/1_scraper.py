@@ -5,7 +5,6 @@ New full-width layout: top input + mode cards + full-width results table.
 import streamlit as st
 import requests, re, io, time, random, pandas as pd
 import xml.etree.ElementTree as ET, urllib.robotparser
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urljoin, urlparse
 from collections import deque
 from datetime import datetime
@@ -439,30 +438,35 @@ else:
 
 if st.session_state.scan_state=="running":
     q=st.session_state.scan_queue; idx=st.session_state.scan_idx; total=len(q)
-    if idx>=total: st.session_state.scan_state="done"; st.rerun()
+    if idx>=total:
+        st.session_state.scan_state="done"; st.rerun()
     else:
-        BATCH=4 if st.session_state.get("parallel",True) else 1
-        cs=dict(cfg); st_=bool(st.session_state.skip_t1); re_=bool(st.session_state.respect_robots); sfb=bool(st.session_state.scrape_fb)
-        batch=q[idx:idx+BATCH]
-        def run_one(url):
-            if not url.startswith("http"): url="https://"+url
-            row,logs=_scrape_site(url,cs,st_,re_,sfb)
-            return row,[((("site",row["Domain"],None,None),"site"))]+logs
-        br=[]
-        if BATCH>1 and len(batch)>1:
-            with ThreadPoolExecutor(max_workers=BATCH) as ex:
-                futs=[ex.submit(run_one,u) for u in batch]
-                for fut in as_completed(futs):
-                    try: br.append(fut.result())
-                    except Exception as e: st.session_state.log_lines.append((("warn",str(e)[:60],None,None),"warn"))
-        else:
-            try: br.append(run_one(batch[0]))
-            except Exception as e: st.session_state.log_lines.append((("warn",str(e)[:60],None,None),"warn"))
-        for row,logs in br:
+        url=q[idx]
+        if not url.startswith("http"): url="https://"+url
+        # snapshot config — pure values only
+        cfg_snap=dict(cfg)
+        skip_t1_=bool(st.session_state.skip_t1)
+        respect_=bool(st.session_state.respect_robots)
+        sfb_=bool(st.session_state.scrape_fb)
+        # add site marker to log
+        domain=urlparse(url).netloc
+        st.session_state.log_lines.append((("site",domain,None,None),"site"))
+        rlog(log_ph)
+        # scrape — sequential, no threading, errors surface properly
+        try:
+            row,logs=_scrape_site(url,cfg_snap,skip_t1_,respect_,sfb_)
             st.session_state.scraper_results[row["Domain"]]=row
             st.session_state.scraper_domains.add(row["Domain"])
             st.session_state.log_lines.extend(logs)
-        st.session_state.scan_idx=idx+len(batch); time.sleep(cs.get("delay",0.1))
+        except Exception as e:
+            err=str(e)[:80]
+            st.session_state.log_lines.append((("warn",f"failed: {err}",None,None),"warn"))
+            # store a placeholder so domain shows as attempted
+            st.session_state.scraper_results[domain]={"Domain":domain,"Best Email":"",
+                "Best Tier":"","All Emails":[],"Twitter":[],"LinkedIn":[],"Facebook":[],
+                "Pages Scraped":0,"Total Time":0,"Source URL":url,"MX":{},"Blocked":False}
+            st.session_state.scraper_domains.add(domain)
+        st.session_state.scan_idx=idx+1
         if st.session_state.scan_idx>=total:
             st.session_state.scan_state="done"
             if st.session_state.get("auto_validate"): st.session_state["run_validate_all"]=True
