@@ -16,104 +16,214 @@ from utils import (
 # ── DARK TERMINAL CSS ─────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+    --dk-bg: #06060f;
+    --dk-surface: #0d0d1a;
+    --dk-surface-hover: #14142a;
+    --dk-border: #1a1a30;
+    --dk-border-subtle: #12122a;
+    --dk-accent: #34d399;
+    --dk-accent-dim: rgba(52,211,153,0.08);
+    --dk-accent-glow: rgba(52,211,153,0.2);
+    --dk-fb: #1877f2;
+    --dk-fb-dim: rgba(24,119,242,0.12);
+    --dk-text: #e2e8f0;
+    --dk-text-secondary: #94a3b8;
+    --dk-text-muted: #475569;
+    --dk-danger: #f87171;
+    --dk-warning: #fbbf24;
+    --dk-radius: 14px;
+    --dk-radius-sm: 10px;
+}
+
 *, html, body, [class*="css"] { font-family: 'Inter', system-ui, sans-serif !important; }
 #MainMenu, footer, header { visibility: hidden; }
-.block-container { padding: 1.4rem 1.8rem 4rem !important; max-width:100% !important; background:#0d0d0d !important; }
-
-/* all text on dark bg */
-.stMarkdown, .stCaption, label, p, span, div { color: #ccc !important; }
-
-/* input */
-.stTextArea textarea {
-    font-family: 'JetBrains Mono', monospace !important; font-size:12px !important;
-    border-radius:8px !important; border:1.5px solid #2a2a2a !important;
-    background:#111 !important; color:#e0e0e0 !important; resize:none !important; line-height:1.65 !important;
+.block-container {
+    padding: 1.6rem 2rem 4rem !important; max-width: 100% !important;
+    background: var(--dk-bg) !important;
+    background-image:
+        radial-gradient(ellipse at 15% 10%, rgba(52,211,153,0.03) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 90%, rgba(24,119,242,0.03) 0%, transparent 50%) !important;
 }
-.stTextArea textarea:focus { border-color:#4ade80 !important; box-shadow:0 0 0 3px rgba(74,222,128,.08) !important; }
-.stTextArea textarea::placeholder { color:#333 !important; }
 
-/* buttons */
+.stMarkdown, .stCaption, label, p, span, div { color: var(--dk-text-secondary) !important; }
+
+.stTextArea textarea {
+    font-family: 'JetBrains Mono', monospace !important; font-size: 12px !important;
+    border-radius: var(--dk-radius-sm) !important;
+    border: 1px solid var(--dk-border) !important;
+    background: var(--dk-surface) !important; color: var(--dk-text) !important;
+    resize: none !important; line-height: 1.7 !important;
+    transition: border-color 0.2s, box-shadow 0.2s !important;
+}
+.stTextArea textarea:focus {
+    border-color: var(--dk-accent) !important;
+    box-shadow: 0 0 0 3px var(--dk-accent-dim), 0 0 20px var(--dk-accent-dim) !important;
+}
+.stTextArea textarea::placeholder { color: #1e293b !important; }
+
 .stButton > button {
-    font-family:'Inter',sans-serif !important; font-weight:600 !important;
-    border-radius:8px !important; font-size:13px !important; height:40px !important;
-    transition:all .15s !important;
+    font-family: 'Inter', sans-serif !important; font-weight: 600 !important;
+    border-radius: var(--dk-radius-sm) !important; font-size: 12.5px !important;
+    height: 40px !important; transition: all 0.2s ease !important;
 }
 .stButton > button[kind="primary"] {
-    background:#4ade80 !important; border:none !important; color:#0d0d0d !important;
-    box-shadow:0 0 15px rgba(74,222,128,.2) !important; font-weight:700 !important;
+    background: linear-gradient(135deg, #34d399 0%, #10b981 100%) !important;
+    border: none !important; color: #022c22 !important;
+    box-shadow: 0 4px 16px rgba(52,211,153,0.25), inset 0 1px 0 rgba(255,255,255,0.2) !important;
+    font-weight: 700 !important;
 }
 .stButton > button[kind="primary"]:hover {
-    background:#22c55e !important; box-shadow:0 0 25px rgba(74,222,128,.35) !important;
-    transform:translateY(-1px) !important;
+    box-shadow: 0 6px 24px rgba(52,211,153,0.4), inset 0 1px 0 rgba(255,255,255,0.25) !important;
+    transform: translateY(-1px) !important;
 }
 .stButton > button[kind="primary"]:disabled {
-    background:#1a1a1a !important; color:#444 !important; box-shadow:none !important;
+    background: var(--dk-surface) !important; color: #1e293b !important;
+    box-shadow: none !important; border: 1px solid var(--dk-border) !important;
 }
 .stButton > button[kind="secondary"] {
-    background:#1a1a1a !important; border:1px solid #2a2a2a !important; color:#888 !important;
+    background: var(--dk-surface) !important; border: 1px solid var(--dk-border) !important;
+    color: var(--dk-text-muted) !important;
 }
-.stButton > button[kind="secondary"]:hover { border-color:#555 !important; color:#ccc !important; }
+.stButton > button[kind="secondary"]:hover {
+    border-color: var(--dk-accent) !important; color: var(--dk-accent) !important;
+    background: var(--dk-accent-dim) !important;
+}
 .stDownloadButton > button {
-    font-family:'Inter',sans-serif !important; font-weight:600 !important;
-    border-radius:8px !important; font-size:12.5px !important; height:38px !important;
-    background:#1a1a1a !important; border:1px solid #2a2a2a !important; color:#888 !important;
+    font-family: 'Inter', sans-serif !important; font-weight: 600 !important;
+    border-radius: var(--dk-radius-sm) !important; font-size: 12px !important;
+    height: 38px !important; background: var(--dk-surface) !important;
+    border: 1px solid var(--dk-border) !important; color: var(--dk-text-muted) !important;
 }
-.stDownloadButton > button:hover { border-color:#4ade80 !important; color:#4ade80 !important; }
+.stDownloadButton > button:hover { border-color: var(--dk-accent) !important; color: var(--dk-accent) !important; }
 
-/* metric cards — dark */
 [data-testid="stMetric"] {
-    background:#111; border:1px solid #1e1e1e; border-radius:10px; padding:.7rem .85rem !important;
+    background: var(--dk-surface) !important; border: 1px solid var(--dk-border) !important;
+    border-radius: var(--dk-radius-sm) !important; padding: .8rem 1rem !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+    transition: border-color 0.2s !important;
 }
+[data-testid="stMetric"]:hover { border-color: var(--dk-border-subtle) !important; }
 [data-testid="stMetricLabel"] p {
-    font-size:9.5px !important; font-weight:700 !important; color:#444 !important;
-    text-transform:uppercase !important; letter-spacing:.6px !important;
+    font-size: 9px !important; font-weight: 700 !important; color: var(--dk-text-muted) !important;
+    text-transform: uppercase !important; letter-spacing: 0.8px !important;
 }
 [data-testid="stMetricValue"] {
-    font-size:22px !important; font-weight:800 !important; color:#e0e0e0 !important; letter-spacing:-.7px !important;
+    font-size: 24px !important; font-weight: 900 !important;
+    color: var(--dk-text) !important; letter-spacing: -0.8px !important;
 }
 
-/* result card */
 .fb-card {
-    background:#111; border:1px solid #1e1e1e; border-radius:10px;
-    padding:12px 16px; margin-bottom:8px; transition:border-color .2s;
+    background: var(--dk-surface); border: 1px solid var(--dk-border);
+    border-radius: var(--dk-radius-sm); padding: 14px 18px;
+    margin-bottom: 10px; transition: all 0.25s ease;
+    position: relative; overflow: hidden;
 }
-.fb-card:hover { border-color:#2a2a2a; }
-.fb-card.has-emails { border-left:3px solid #4ade80; }
-.fb-card.blocked    { border-left:3px solid #ef4444; opacity:.6; }
-.fb-card.no-emails  { border-left:3px solid #374151; }
-.fb-handle { font-size:14px; font-weight:700; color:#e0e0e0; font-family:'JetBrains Mono',monospace; }
-.fb-status { font-size:10px; color:#555; margin-top:2px; }
-.fb-email  { font-family:'JetBrains Mono',monospace; font-size:11.5px; margin-top:6px; display:flex; align-items:center; gap:8px; }
-.fb-t1 { color:#fbbf24; font-weight:700; }
-.fb-t2 { color:#60a5fa; font-weight:600; }
-.fb-t3 { color:#6b7280; }
-.tier-badge { font-size:9px; font-weight:700; padding:1px 5px; border-radius:3px; margin-left:4px; }
-.tb-t1 { background:#78350f22; color:#fbbf24; border:1px solid #78350f44; }
-.tb-t2 { background:#1e3a5f22; color:#60a5fa; border:1px solid #1e3a5f44; }
-.tb-t3 { background:#1f293722; color:#6b7280; border:1px solid #1f293744; }
-.scanning-card { border-left:3px solid #facc15 !important; animation:scan-pulse 1.5s infinite; }
-@keyframes scan-pulse { 0%,100%{border-left-color:#facc15} 50%{border-left-color:#4ade80} }
+.fb-card::before {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 3px; height: 100%; transition: background 0.3s;
+}
+.fb-card:hover {
+    border-color: var(--dk-border-subtle);
+    background: var(--dk-surface-hover);
+    transform: translateX(2px);
+}
+.fb-card.has-emails::before  { background: var(--dk-accent); box-shadow: 0 0 12px var(--dk-accent-glow); }
+.fb-card.blocked::before     { background: var(--dk-danger); }
+.fb-card.no-emails::before   { background: #1e293b; }
+.fb-handle {
+    font-size: 14px; font-weight: 700; color: var(--dk-text);
+    font-family: 'JetBrains Mono', monospace; letter-spacing: -0.3px;
+}
+.fb-status { font-size: 10px; color: var(--dk-text-muted); margin-top: 2px; }
+.fb-email {
+    font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
+    margin-top: 8px; display: flex; align-items: center; gap: 10px;
+}
+.fb-t1 { color: #fbbf24; font-weight: 700; }
+.fb-t2 { color: #60a5fa; font-weight: 600; }
+.fb-t3 { color: var(--dk-text-muted); }
 
-.hdr-title { font-size:20px; font-weight:800; color:#fff; letter-spacing:-.5px; display:flex; align-items:center; gap:10px; }
-.hdr-box { width:34px; height:34px; background:#1877f2; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
-.hdr-sub { font-size:11px; color:#444; margin-top:3px; }
-.prog-strip { display:flex; align-items:center; gap:12px; padding:10px 14px; background:#111; border:1px solid #1e1e1e; border-radius:8px; margin:8px 0; }
-.prog-strip-bar { flex:1; height:3px; background:#1e1e1e; border-radius:99px; overflow:hidden; }
-.prog-strip-fill { height:100%; background:#4ade80; border-radius:99px; transition:width .4s; }
-.prog-strip-text { font-size:11px; color:#555; font-family:'JetBrains Mono',monospace; white-space:nowrap; }
-.pulse-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#4ade80; margin-right:8px; animation:dot-pulse 1.4s infinite; }
-@keyframes dot-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.2;transform:scale(.75)} }
-.sec-label { font-size:10px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:#333; display:block; margin-bottom:8px; }
-.pill-tag { display:inline-block; font-size:9.5px; font-weight:600; padding:2px 7px; border-radius:4px; }
-hr { border-color:#1e1e1e !important; margin:12px 0 !important; }
+.tier-badge {
+    font-size: 9px; font-weight: 700; padding: 2px 7px;
+    border-radius: 5px; margin-left: 4px; letter-spacing: 0.3px;
+}
+.tb-t1 { background: rgba(251,191,36,0.1); color: #fbbf24; border: 1px solid rgba(251,191,36,0.2); }
+.tb-t2 { background: rgba(96,165,250,0.1); color: #60a5fa; border: 1px solid rgba(96,165,250,0.2); }
+.tb-t3 { background: rgba(71,85,105,0.1); color: #64748b; border: 1px solid rgba(71,85,105,0.15); }
 
-/* toggle */
-[data-testid="stToggle"] > label { color:#888 !important; }
-/* selectbox */
-[data-testid="stSelectbox"] > div > div { background:#111 !important; border-color:#2a2a2a !important; color:#ccc !important; }
-/* number input */
-[data-testid="stNumberInput"] input { background:#111 !important; border-color:#2a2a2a !important; color:#ccc !important; }
+.scanning-card::before {
+    background: var(--dk-warning) !important;
+    animation: scan-border 1.5s ease-in-out infinite !important;
+}
+@keyframes scan-border {
+    0%, 100% { box-shadow: 0 0 8px rgba(251,191,36,0.3); }
+    50% { box-shadow: 0 0 16px rgba(52,211,153,0.4); background: var(--dk-accent); }
+}
+
+.hdr-title {
+    font-size: 20px; font-weight: 900; color: #fff;
+    letter-spacing: -0.5px; display: flex; align-items: center; gap: 12px;
+}
+.hdr-box {
+    width: 38px; height: 38px; background: var(--dk-fb);
+    border-radius: 10px; display: flex; align-items: center;
+    justify-content: center; font-size: 18px; flex-shrink: 0;
+    box-shadow: 0 4px 16px rgba(24,119,242,0.35);
+    font-weight: 800; color: #fff;
+}
+.hdr-sub { font-size: 11px; color: var(--dk-text-muted); margin-top: 4px; font-weight: 500; }
+
+.prog-strip {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 16px; background: var(--dk-surface);
+    border: 1px solid var(--dk-border); border-radius: var(--dk-radius-sm);
+    margin: 10px 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.prog-strip-bar {
+    flex: 1; height: 3px; background: var(--dk-border);
+    border-radius: 99px; overflow: hidden;
+}
+.prog-strip-fill {
+    height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg, var(--dk-accent), #6ee7b7);
+    transition: width 0.5s ease; position: relative; overflow: hidden;
+}
+.prog-strip-fill::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.prog-strip-text {
+    font-size: 11px; color: var(--dk-text-muted);
+    font-family: 'JetBrains Mono', monospace; white-space: nowrap;
+}
+
+.pulse-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--dk-accent); margin-right: 8px;
+    animation: dot-pulse 1.4s ease-in-out infinite;
+}
+@keyframes dot-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 6px var(--dk-accent-glow); }
+    50% { opacity: 0.2; transform: scale(0.7); box-shadow: none; }
+}
+
+.sec-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--dk-text-muted);
+    display: block; margin-bottom: 8px;
+}
+.pill-tag { display: inline-block; font-size: 9.5px; font-weight: 600; padding: 2px 8px; border-radius: 5px; }
+hr { border-color: var(--dk-border) !important; margin: 14px 0 !important; }
+
+[data-testid="stToggle"] > label { color: var(--dk-text-secondary) !important; }
+[data-testid="stSelectbox"] > div > div { background: var(--dk-surface) !important; border-color: var(--dk-border) !important; color: var(--dk-text) !important; }
+[data-testid="stNumberInput"] input { background: var(--dk-surface) !important; border-color: var(--dk-border) !important; color: var(--dk-text) !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -126,7 +236,6 @@ for k,v in {
 
 # ── SCRAPER LOGIC ─────────────────────────────────────────────────────────────
 def normalize_handle(raw):
-    """Extract handle from raw input (URL or plain handle)."""
     raw=raw.strip()
     if not raw: return None
     m=re.search(r'facebook\.com/(?:pages/[^/]+/)?([A-Za-z0-9_.]{3,80})', raw)
@@ -138,19 +247,12 @@ def normalize_handle(raw):
     return None
 
 def scrape_fb_handle(handle, delay=3):
-    """
-    Scrapes a Facebook handle. Tries main page + /about.
-    Returns dict: {emails, status, time, pages_tried}.
-    Thread-safe — no session_state.
-    """
     t0=time.time(); all_emails=set(); pages_tried=0; status="no_emails"
-
     urls_to_try=[
         f"https://www.facebook.com/{handle}",
         f"https://www.facebook.com/{handle}/about",
         f"https://m.facebook.com/{handle}",
     ]
-
     for url in urls_to_try:
         html,code=fetch_page(url,timeout=12,mobile=True)
         if code==403 or (html and "checkpoint" in html.lower() and "facebook" in url):
@@ -160,10 +262,8 @@ def scrape_fb_handle(handle, delay=3):
             if found: all_emails.update(found)
             pages_tried+=1
         time.sleep(delay)
-
     if all_emails: status="scraped"
     elif status!="blocked": status="no_emails"
-
     return {
         "emails":sort_by_tier(all_emails),
         "status":status,
@@ -176,8 +276,8 @@ hc1,hc2=st.columns([4,1])
 with hc1:
     st.markdown(
         '<div class="hdr-title"><div class="hdr-box">f</div>Facebook Extractor</div>'
-        '<div class="hdr-sub">Extract contact emails directly from Facebook pages &nbsp;|&nbsp; '
-        'tries main page + /about &nbsp;|&nbsp; rate-limit aware</div>',
+        '<div class="hdr-sub">Extract contact emails from Facebook pages &nbsp;·&nbsp; '
+        'main page + /about + mobile &nbsp;·&nbsp; rate-limit aware</div>',
         unsafe_allow_html=True)
 with hc2:
     fb_results=st.session_state.get("fb_results",{})
@@ -205,7 +305,6 @@ with col_in:
         h = normalize_handle(line)
         if h: handles_to_scrape.append(h)
 
-    # import from scraper
     scraper_data = st.session_state.get("scraper_results", {})
     fb_from_scraper = []
     for r in scraper_data.values():
@@ -222,11 +321,11 @@ with col_in:
 
     if handles_to_scrape:
         st.markdown(
-            '<div style="display:flex;flex-wrap:wrap;gap:4px;margin:5px 0">'
-            + "".join(f'<span style="font-family:JetBrains Mono,monospace;font-size:10.5px;'
-                      f'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:4px;'
-                      f'padding:2px 7px;color:#888">{h}</span>' for h in handles_to_scrape[:8])
-            + (f'<span style="font-size:10.5px;color:#444">+{len(handles_to_scrape)-8} more</span>'
+            '<div style="display:flex;flex-wrap:wrap;gap:5px;margin:6px 0">'
+            + "".join(f'<span style="font-family:JetBrains Mono,monospace;font-size:10px;'
+                      f'background:var(--dk-surface);border:1px solid var(--dk-border);border-radius:6px;'
+                      f'padding:3px 9px;color:var(--dk-text-secondary)">{h}</span>' for h in handles_to_scrape[:8])
+            + (f'<span style="font-size:10px;color:var(--dk-text-muted)">+{len(handles_to_scrape)-8} more</span>'
                if len(handles_to_scrape) > 8 else "")
             + '</div>', unsafe_allow_html=True)
 
@@ -238,7 +337,7 @@ with col_ctrl:
                              help="Scrape 2 handles simultaneously. May increase block rate.")
     st.session_state.fb_parallel = parallel_fb
 
-    st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
 
     running = st.session_state.get("fb_running", False)
     if not running:
@@ -293,13 +392,12 @@ if fb_results:
     m3.metric("Total Emails", total_em)
     m4.metric("Tier 1", t1_count)
     m5.metric("Blocked", blocked)
-    st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
 
 # ── RESULTS FEED ──────────────────────────────────────────────────────────────
 if fb_results:
     st.markdown('<span class="sec-label">Results</span>', unsafe_allow_html=True)
 
-    # sort: has emails first, then blocked, then no emails
     def sort_key(item):
         _,r=item
         if r.get("emails"):   return 0
@@ -308,7 +406,6 @@ if fb_results:
 
     sorted_results = sorted(fb_results.items(), key=sort_key)
 
-    # two-column card grid
     n = len(sorted_results)
     left_items  = sorted_results[:n//2 + n%2]
     right_items = sorted_results[n//2 + n%2:]
@@ -328,7 +425,7 @@ if fb_results:
                 else:           card_cls += " no-emails"
 
                 status_icon = {"scraped":"✓","blocked":"✗","no_emails":"○"}.get(status,"?")
-                status_color= {"scraped":"#4ade80","blocked":"#ef4444","no_emails":"#374151"}.get(status,"#555")
+                status_color= {"scraped":"var(--dk-accent)","blocked":"var(--dk-danger)","no_emails":"var(--dk-text-muted)"}.get(status,"var(--dk-text-muted)")
 
                 emails_html = ""
                 for email in emails[:4]:
@@ -341,16 +438,16 @@ if fb_results:
                         f'<span class="tier-badge {badge_cls}">T{t}</span>'
                         f'</div>')
                 if len(emails) > 4:
-                    emails_html += f'<div style="font-size:10px;color:#444;margin-top:4px">+ {len(emails)-4} more email(s)</div>'
+                    emails_html += f'<div style="font-size:10px;color:var(--dk-text-muted);margin-top:5px">+ {len(emails)-4} more</div>'
                 if not emails:
-                    emails_html = f'<div style="font-size:10.5px;color:#333;margin-top:4px">' \
+                    emails_html = f'<div style="font-size:10.5px;color:var(--dk-text-muted);margin-top:5px">' \
                                   f'{"Blocked by Facebook" if status=="blocked" else "No emails found"}</div>'
 
                 st.markdown(f"""
                 <div class="{card_cls}">
                   <div style="display:flex;justify-content:space-between;align-items:flex-start">
                     <span class="fb-handle">{handle}</span>
-                    <span style="font-size:10px;color:{status_color};font-weight:600">
+                    <span style="font-size:10px;color:{status_color};font-weight:600;font-family:JetBrains Mono,monospace">
                       {status_icon} {status} &nbsp;·&nbsp; {elapsed}s
                     </span>
                   </div>
@@ -359,12 +456,17 @@ if fb_results:
 
 elif not running:
     st.markdown(
-        '<div style="text-align:center;padding:60px 0;color:#333">'
-        '<div style="font-size:40px;margin-bottom:12px;opacity:.3">f</div>'
-        '<div style="font-size:15px;font-weight:700;color:#444;margin-bottom:8px">No results yet</div>'
-        '<div style="font-size:12px;color:#333;line-height:1.8">Paste Facebook handles or page URLs<br>'
+        '<div style="text-align:center;padding:80px 0">'
+        '<div style="width:72px;height:72px;border-radius:20px;'
+        'background:var(--dk-fb-dim);border:1px solid var(--dk-border);'
+        'display:inline-flex;align-items:center;justify-content:center;'
+        'margin-bottom:20px;font-size:28px;font-weight:800;color:var(--dk-fb)">f</div>'
+        '<div style="font-size:18px;font-weight:800;color:var(--dk-text);'
+        'letter-spacing:-.5px;margin-bottom:10px">No results yet</div>'
+        '<div style="font-size:12px;color:var(--dk-text-muted);line-height:2;max-width:300px;margin:0 auto">'
+        'Paste Facebook handles or page URLs<br>'
         'Import from Scraper if you already ran a scrape<br>'
-        '<span style="color:#1d4ed8">Tip: /about pages often have contact emails</span></div>'
+        '<span style="color:var(--dk-fb);font-weight:600">Tip: /about pages often have contact emails</span></div>'
         '</div>', unsafe_allow_html=True)
 
 # ── SCRAPE ENGINE ─────────────────────────────────────────────────────────────
