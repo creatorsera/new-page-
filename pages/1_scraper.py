@@ -12,7 +12,6 @@ Key design decisions:
 import streamlit as st
 import requests, re, io, time, random, pandas as pd
 import xml.etree.ElementTree as ET, urllib.robotparser
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urljoin, urlparse
 from collections import deque
 from datetime import datetime
@@ -322,7 +321,6 @@ with tc1:
 
 with tc2:
     with st.expander("⚙ Settings",expanded=True):
-        st.session_state.parallel       = st.toggle("4× Parallel",    value=st.session_state.parallel,       key="t_par")
         st.session_state.skip_t1        = st.toggle("Stop at T1",     value=st.session_state.skip_t1,        key="t_sk")
         st.session_state.respect_robots = st.toggle("Robots.txt",     value=st.session_state.respect_robots, key="t_rb")
         st.session_state.auto_validate  = st.toggle("Auto-validate",  value=st.session_state.auto_validate,  key="t_av",
@@ -637,81 +635,51 @@ else:
             vph.empty(); st.rerun()
 
 # ═════════════════════════════════════════════════════════════════════════════
-#  SCAN ENGINE — runs AFTER all UI, uses session_state snapshot only
+#  SCAN ENGINE — strictly sequential, one site per rerun
 #
-#  Threading strategy:
-#  - Threads call scrape_one() which is completely self-contained
-#  - Threads NEVER read or write session_state
-#  - Results collected into a plain list, then written to session_state
-#  - Each batch = 4 sites, one rerun per batch
+#  Why no threading:
+#  - as_completed() blocks the main Streamlit thread until ALL futures resolve
+#  - One slow/hung site freezes the whole batch (shows "stuck at 4/8/12...")
+#  - Network I/O is the bottleneck — threads don't help throughput
+#  - Sequential gives live per-site progress and never hangs
 # ═════════════════════════════════════════════════════════════════════════════
-if st.session_state.scan_state=="running":
-    q=st.session_state.scan_queue
-    idx=st.session_state.scan_idx
-    total=len(q)
+if st.session_state.scan_state == "running":
+    q     = st.session_state.scan_queue
+    idx   = st.session_state.scan_idx
+    total = len(q)
 
-    if idx>=total:
-        st.session_state.scan_state="done"
+    if idx >= total:
+        st.session_state.scan_state = "done"
         if st.session_state.get("auto_validate"):
-            st.session_state["run_validate_all"]=True
+            st.session_state["run_validate_all"] = True
         st.rerun()
     else:
-        # use the STORED config snapshot — never re-read UI
-        cfg_snap=st.session_state.get("scan_cfg",{})
-        use_parallel=st.session_state.get("parallel",True)
-        BATCH=4 if use_parallel else 1
+        url = q[idx]
+        if not url.startswith("http"):
+            url = "https://" + url
 
-        batch_urls=q[idx:idx+BATCH]
-        # normalise URLs
-        batch_urls=[u if u.startswith("http") else "https://"+u for u in batch_urls]
+        cfg_snap = st.session_state.get("scan_cfg", {})
+        domain   = urlparse(url).netloc
 
-        collected=[]  # list of (row, logs)
+        # add site header to log immediately so user sees progress
+        st.session_state.log_lines.append((("site", domain, None, None), "site"))
 
-        if use_parallel and len(batch_urls)>1:
-            with ThreadPoolExecutor(max_workers=BATCH) as ex:
-                future_map={ex.submit(scrape_one, url, cfg_snap): url for url in batch_urls}
-                for fut in as_completed(future_map):
-                    url=future_map[fut]
-                    try:
-                        row,logs=fut.result(timeout=120)
-                        collected.append((row,logs))
-                    except Exception as e:
-                        domain=urlparse(url).netloc
-                        collected.append(({
-                            "Domain":domain,"Best Email":"","Best Tier":"",
-                            "All Emails":[],"Twitter":[],"LinkedIn":[],"Facebook":[],
-                            "Pages Scraped":0,"Total Time":0,"Source URL":url,
-                            "MX":{},"Blocked":False,
-                        },[(("warn",f"error: {str(e)[:60]}",None,None),"warn")]))
-        else:
-            url=batch_urls[0]
-            try:
-                row,logs=scrape_one(url,cfg_snap)
-                collected.append((row,logs))
-            except Exception as e:
-                domain=urlparse(url).netloc
-                collected.append(({
-                    "Domain":domain,"Best Email":"","Best Tier":"",
-                    "All Emails":[],"Twitter":[],"LinkedIn":[],"Facebook":[],
-                    "Pages Scraped":0,"Total Time":0,"Source URL":url,
-                    "MX":{},"Blocked":False,
-                },[(("warn",f"error: {str(e)[:60]}",None,None),"warn")]))
+        try:
+            row, logs = scrape_one(url, cfg_snap)
+        except Exception as e:
+            row  = {"Domain":domain,"Best Email":"","Best Tier":"","All Emails":[],
+                    "Twitter":[],"LinkedIn":[],"Facebook":[],"Pages Scraped":0,
+                    "Total Time":0,"Source URL":url,"MX":{},"Blocked":False}
+            logs = [(("warn", f"error: {str(e)[:80]}", None, None), "warn")]
 
-        # write results to session_state (safe — main thread only)
-        for row,logs in collected:
-            domain=row["Domain"]
-            st.session_state.scraper_results[domain]=row
-            st.session_state.scraper_domains.add(domain)
-            # prepend site marker then logs
-            st.session_state.log_lines.append((("site",domain,None,None),"site"))
-            st.session_state.log_lines.extend(logs)
+        st.session_state.scraper_results[domain] = row
+        st.session_state.scraper_domains.add(domain)
+        st.session_state.log_lines.extend(logs)
+        st.session_state.scan_idx = idx + 1
 
-        st.session_state.scan_idx=idx+len(batch_urls)
-
-        if st.session_state.scan_idx>=total:
-            st.session_state.scan_state="done"
+        if st.session_state.scan_idx >= total:
+            st.session_state.scan_state = "done"
             if st.session_state.get("auto_validate"):
-                # set flag; validate will run on the NEXT rerun after scan completes
-                st.session_state["run_validate_all"]=True
+                st.session_state["run_validate_all"] = True
 
         st.rerun()
